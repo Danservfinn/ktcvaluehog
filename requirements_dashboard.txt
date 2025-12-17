@@ -1,0 +1,18 @@
+# Dynasty Edge Dashboard Requirements
+# Install with: pip install -r requirements_dashboard.txt
+
+# Core
+streamlit>=1.30.0
+pandas>=2.0.0
+plotly>=5.18.0
+
+# NFL Data (nflverse)
+nflreadpy>=0.1.0
+polars>=0.20.0
+pyarrow>=14.0.0
+
+# AI Agent (Claude Opus 4.5)
+anthropic>=0.40.0
+
+# Optional: Neo4j integration
+# neo4j>=5.15.0
