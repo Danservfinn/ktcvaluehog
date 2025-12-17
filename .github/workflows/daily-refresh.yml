@@ -1,0 +1,56 @@
+name: 🏈 Daily NFL Data Refresh
+
+on:
+  schedule:
+    # Run twice daily at 6 AM and 6 PM ET (11:00 and 23:00 UTC)
+    - cron: '0 11 * * *'
+    - cron: '0 23 * * *'
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  refresh-nfl-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install nflreadpy polars pyarrow pandas requests beautifulsoup4
+
+      - name: 🏈 Fetch NFL data
+        run: |
+          python scripts/fetch_nfl_data.py
+
+      - name: 📊 Fetch KTC data
+        run: |
+          python scripts/fetch_ktc_data.py
+        continue-on-error: true  # KTC scraping may occasionally fail
+
+      - name: 🔄 Fetch Sleeper data
+        run: |
+          python scripts/fetch_sleeper_data.py
+        env:
+          SLEEPER_LEAGUE_ID: ${{ vars.SLEEPER_LEAGUE_ID }}
+
+      - name: 📈 Generate analysis report
+        run: |
+          python scripts/generate_daily_report.py
+
+      - name: 💾 Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add -A
+          git diff --staged --quiet || git commit -m "🔄 Daily data refresh $(date +'%Y-%m-%d %H:%M UTC')"
+          git push
