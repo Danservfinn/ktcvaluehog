@@ -249,6 +249,14 @@ def create_efficiency_quadrant(df: pd.DataFrame):
 
     # Calculate points per million
     df = df.copy()
+
+    # Filter out rows with NaN values
+    df = df.dropna(subset=['apy', 'fpts', 'ktc_value'])
+    df = df[df['apy'] > 0]  # Avoid division by zero
+
+    if df.empty:
+        return None
+
     df['ppm'] = df['fpts'] / (df['apy'] / 1_000_000)
 
     # Calculate median values for quadrant lines
@@ -261,7 +269,7 @@ def create_efficiency_quadrant(df: pd.DataFrame):
         y='fpts',
         color='position',
         size='ktc_value',
-        hover_data=['name', 'team', 'signal'],
+        hover_data=['name', 'team', 'signal'] if 'signal' in df.columns else ['name', 'team'],
         color_discrete_map=COLORS,
         labels={'apy': 'Annual Contract Value ($)', 'fpts': 'Fantasy Points (Season)'}
     )
@@ -325,12 +333,26 @@ def create_contract_ktc_scatter(df: pd.DataFrame):
     if df.empty:
         return None
 
+    # Filter out rows with NaN values
+    df = df.copy()
+    df = df.dropna(subset=['guaranteed', 'ktc_value'])
+
+    if df.empty:
+        return None
+
+    # Build hover_data based on available columns
+    hover_cols = ['name', 'team']
+    if 'apy' in df.columns:
+        hover_cols.append('apy')
+    if 'signal' in df.columns:
+        hover_cols.append('signal')
+
     fig = px.scatter(
         df,
         x='guaranteed',
         y='ktc_value',
         color='position',
-        hover_data=['name', 'team', 'apy', 'signal'],
+        hover_data=hover_cols,
         color_discrete_map=COLORS,
         title="Guaranteed Money vs Dynasty Value",
         labels={'guaranteed': 'Guaranteed Money ($)', 'ktc_value': 'KTC Value'}

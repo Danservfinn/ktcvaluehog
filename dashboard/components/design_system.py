@@ -31,10 +31,11 @@ COLORS = {
     'neutral_light': '#F3F4F6',  # Light gray background
     'neutral_dark': '#374151',   # Dark gray text
 
-    # Background colors
-    'background': '#F9FAFB',     # Page background
+    # Background colors (Light Theme)
+    'background': '#FFFFFF',     # Page background - pure white
+    'sidebar': '#F8FAFC',        # Sidebar background - light slate
     'card': '#FFFFFF',           # Card background
-    'card_hover': '#F3F4F6',     # Card hover state
+    'card_hover': '#F1F5F9',     # Card hover state
 
     # Text colors
     'text_primary': '#111827',   # Primary text
@@ -88,7 +89,7 @@ def get_thoth_css():
     return """
 <style>
     /* ================================
-       THOTH DESIGN SYSTEM
+       THOTH DESIGN SYSTEM - LIGHT THEME
        ================================ */
 
     /* Root variables */
@@ -99,7 +100,72 @@ def get_thoth_css():
         --thoth-danger: #EF4444;
         --thoth-warning: #F59E0B;
         --thoth-neutral: #6B7280;
-        --thoth-bg: #F9FAFB;
+        --thoth-bg: #FFFFFF;
+    }
+
+    /* Force light theme for Streamlit */
+    .stApp {
+        background-color: #FFFFFF !important;
+    }
+
+    .stApp > header {
+        background-color: #FFFFFF !important;
+    }
+
+    [data-testid="stSidebar"] {
+        background-color: #F8FAFC !important;
+    }
+
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stSidebar"] .stSelectbox label,
+    [data-testid="stSidebar"] span {
+        color: #1E293B !important;
+    }
+
+    /* Override dark text colors */
+    .stMarkdown, .stMarkdown p, .stText, h1, h2, h3, h4, h5, h6 {
+        color: #1E293B !important;
+    }
+
+    /* Metric styling for light theme */
+    [data-testid="stMetricValue"] {
+        color: #1E3A5F !important;
+    }
+
+    [data-testid="stMetricLabel"] {
+        color: #64748B !important;
+    }
+
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {
+        background-color: #F1F5F9 !important;
+        border-radius: 8px;
+        padding: 4px;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        color: #475569 !important;
+    }
+
+    .stTabs [aria-selected="true"] {
+        background-color: #FFFFFF !important;
+        color: #1E3A5F !important;
+    }
+
+    /* Input fields */
+    .stTextInput input, .stSelectbox select, .stNumberInput input {
+        background-color: #FFFFFF !important;
+        color: #1E293B !important;
+        border-color: #E2E8F0 !important;
+    }
+
+    /* DataFrames */
+    .stDataFrame {
+        background-color: #FFFFFF !important;
+    }
+
+    [data-testid="stDataFrameResizable"] {
+        background-color: #FFFFFF !important;
     }
 
     /* Main header styling */
@@ -508,7 +574,7 @@ def render_thoth_footer():
     import streamlit as st
     st.markdown('''
     <div class="thoth-footer">
-        Thoth Dynasty Intelligence | ML Model R²=0.87 | 3,700+ Players | 40+ Features
+        Thoth Dynasty Intelligence | ML Model R²=0.84 | 500+ Players | 21 Features
     </div>
     ''', unsafe_allow_html=True)
 

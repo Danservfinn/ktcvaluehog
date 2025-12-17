@@ -68,7 +68,7 @@ def main():
         st.markdown("---")
         st.markdown("### Model Info")
         st.markdown("""
-        <span class="model-stat">R² = 0.87</span>
+        <span class="model-stat">R² = 0.84</span>
         <span class="model-stat">3,700+ Players</span>
         """, unsafe_allow_html=True)
 
@@ -267,7 +267,7 @@ def main():
             st.markdown("""
             - **NFLverse**: Player stats, combine, contracts, injuries
             - **KeepTradeCut**: Dynasty player valuations
-            - **ML Model**: H2O AutoML GBM (R²=0.87)
+            - **ML Model**: H2O AutoML GBM (R²=0.84)
             """)
 
     # Footer

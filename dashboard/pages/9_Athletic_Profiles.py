@@ -307,13 +307,24 @@ def create_athletic_value_scatter(df: pd.DataFrame):
     df = df.copy()
     df['speed_score'] = 100 - (df['forty'] - 4.2) / 0.8 * 100
 
+    # Filter out rows with NaN values that would break the scatter plot
+    df = df.dropna(subset=['speed_score', 'ktc_value'])
+
+    # Handle NaN in vertical for size parameter - fill with median or remove
+    if 'vertical' in df.columns:
+        df['vertical'] = df['vertical'].fillna(df['vertical'].median())
+        df = df[df['vertical'].notna()]
+
+    if df.empty:
+        return None
+
     fig = px.scatter(
         df,
         x='speed_score',
         y='ktc_value',
         color='position',
-        size='vertical',
-        hover_data=['name', 'forty', 'signal'],
+        size='vertical' if 'vertical' in df.columns and df['vertical'].notna().any() else None,
+        hover_data=['name', 'forty', 'signal'] if 'signal' in df.columns else ['name', 'forty'],
         color_discrete_map=COLORS,
         title="Speed vs Dynasty Value"
     )

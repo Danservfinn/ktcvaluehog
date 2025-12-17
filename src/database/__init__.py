@@ -10,3 +10,5 @@ from .relationship_builder import (
     ChemistryRelationshipBuilder,
     TrajectoryRelationshipBuilder
 )
+from .college_schema import CollegeSchemaManager
+from .nfl2025_schema import NFL2025SchemaManager
