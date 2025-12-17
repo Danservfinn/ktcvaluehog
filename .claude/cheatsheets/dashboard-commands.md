@@ -12,18 +12,24 @@ updated_at: 2025-12-17T16:15:22Z
 uuid: b5ebc830-2142-4452-bc9b-f2ab9cab2ffa
 ---
 
-# Dashboard Commands Cheatsheet
+# Thoth Commands Cheatsheet
 
-## Running the Dashboard
+## Running the Platform
 
 ```bash
 # Activate virtual environment
 source venv/bin/activate
 
-# Run Streamlit dashboard
+# Run 12-page Streamlit dashboard
+streamlit run dashboard/app.py
+
+# Or legacy single-file dashboard
 streamlit run dashboard.py
 
-# Or use the launcher script
+# Run Thoth CLI agent
+python thoth_agent.py
+
+# Or use launcher script
 ./run.sh
 ```
 
@@ -78,15 +84,20 @@ ls data/historical/ktc_snapshots/  # Daily snapshots
 cat data/historical/ktc_snapshots/ktc_all_snapshots.csv  # Consolidated
 ```
 
-## Dashboard Features
+## Dashboard Pages (12)
 
-| Tab | Function |
-|-----|----------|
-| Player Rankings | View/filter players by position, search, sort by KTC value |
-| Trade Analyzer | Evaluate trades, compare player values |
-| Roster Analysis | League roster breakdown, team valuations |
-| Buy/Sell Signals | Edge scores showing undervalued/overvalued players |
-| AI Chat | Claude-powered analysis (requires API key) |
+| Page | File | Function |
+|------|------|----------|
+| Player Intelligence | `1_Player_Analysis.py` | 4-tab deep dive (valuation, athletic, situation, history) |
+| Dynasty Edge | `2_Dynasty_Edge_Scores.py` | Buy/sell signals with filtering |
+| Trade Analyzer | `3_Trade_Analyzer.py` | ML-powered trade evaluation |
+| League Analysis | `4_League_Analysis.py` | Sleeper roster analysis |
+| Market Trends | `5_Market_Trends.py` | Value tracking over time |
+| Graph Explorer | `6_Graph_Explorer.py` | Neo4j visualization |
+| AI Chat (Thoth) | `7_Chat.py` | Natural language queries |
+| Model Insights | `8_Model_Insights.py` | ML explainability, feature importance |
+| Athletic Profiles | `9_Athletic_Profiles.py` | Combine data analysis |
+| Contract Intel | `10_Contract_Intelligence.py` | NFL salary analysis |
 
 ## Troubleshooting
 

@@ -12,55 +12,73 @@ updated_at: 2025-12-17T16:14:23Z
 uuid: 195655a9-6ab4-4b70-a6cd-b6a1033c37d3
 ---
 
-# Data Pipeline Architecture
+# Thoth Platform Architecture
 
 ## Overview
-Dynasty Edge uses a multi-layer architecture combining graph databases, temporal tracking, and AI agents.
+Thoth is a modular dynasty fantasy platform with ML-powered valuations, a 14-tool AI agent, and a 12-page dashboard.
 
-## Data Flow
+## System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    DATA COLLECTION (Twice Daily)                │
-│  GitHub Actions → fetch_ktc_data.py, fetch_sleeper_data.py      │
+│  GitHub Actions → KTC, Sleeper, NFLverse (combine, contracts)   │
 └───────────────────────────┬─────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    NEO4J GRAPH DATABASE                          │
-│  Nodes: Player, Team, DraftPick, TemporalSnapshot               │
-│  Edges: PLAYS_FOR, TARGETS, HANDOFFS, VALUE_AT                  │
+│                    FEATURE ENGINEERING (src/features/)          │
+│  40+ features: athletic, contract, production, situational      │
+│  src/loaders/ → ID resolution, NFLverse enrichment              │
 └───────────────────────────┬─────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    VALUATION ENGINE                              │
-│  valuation_model.py → aging curves + scarcity multipliers       │
-│  Edge Score = Our Value - KTC Value (buy/sell signals)          │
+│                    NEO4J GRAPH DATABASE (src/database/)         │
+│  3,700+ players with unified schema                             │
+│  Cypher queries via src/database/queries.py                     │
 └───────────────────────────┬─────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    AI LAYER                                      │
-│  Claude Agent → Conversational analysis                          │
-│  AI DS Team → Feature engineering, EDA, ML training             │
+│                    ML VALUATION (src/ml/)                       │
+│  Gradient Boosting (R²=0.87) → Edge scoring                     │
+│  Model vs KTC = Buy/Sell signals                                │
+└───────────────────────────┬─────────────────────────────────────┘
+                            ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    PRESENTATION LAYER                           │
+│  dashboard/ → 12-page Streamlit app                             │
+│  thoth_agent.py → 14-tool CLI agent                             │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+## Module Structure (`src/`)
+
+| Module | Responsibility |
+|--------|----------------|
+| `src/loaders/` | Data ingestion (KTC, NFLverse, ID mapping) |
+| `src/features/` | Feature engineering (40+ features) |
+| `src/database/` | Neo4j client, schema, queries |
+| `src/ml/` | Model training and prediction |
+| `src/agent/` | Thoth AI tool implementations |
+| `src/api/` | External API clients (Sleeper, injuries) |
+| `src/validation/` | Backtesting framework |
+
 ## Key Patterns
 
-### 1. Temporal Snapshots
-- Store player values at each time point in Neo4j
-- Query: `MATCH (p:Player)-[r:VALUE_AT]->(s:Snapshot) RETURN p, r, s`
-- Enables tracking value changes over time
+### 1. ML-Powered Edge Scoring
+- Train on 40 features → predict `ktc_value`
+- Edge = Model Prediction - KTC Market Value
+- Signal thresholds: ±7% (buy/sell), ±15% (strong)
 
-### 2. Edge Scoring
-- Calculate independent valuation using `valuation_model.py`
-- Compare to KTC crowdsourced values
-- Positive edge = undervalued (BUY), Negative edge = overvalued (SELL)
+### 2. Unified Player Schema
+- Single Neo4j node type with all 40+ properties
+- ID resolution across KTC, Sleeper, NFL, ESPN, PFF
 
-### 3. Graph Relationships
-- QB→WR target connections weighted by target share
-- RB→QB handoff relationships
-- Team → Player depth chart positions
+### 3. Multi-Page Dashboard
+- `dashboard/app.py` - Entry point
+- `dashboard/pages/` - 10 analysis pages
+- `dashboard/components/` - Shared UI (design_system, tooltips)
 
-### 4. Caching Strategy
-- Streamlit `@st.cache_data(ttl=300)` for 5-minute data caching
-- Neo4j query results cached at application layer
+### 4. Tool-Based Agent
+- 14 specialized tools in `src/agent/enhanced_tools.py`
+- Claude orchestrates tool selection
+- Each tool returns structured data for LLM interpretation

@@ -12,34 +12,58 @@ updated_at: 2025-12-17T16:13:54Z
 uuid: 183a9104-1aab-4e3c-831f-f7da99405e7f
 ---
 
-# Dynasty Edge - AI-Powered Dynasty Fantasy Football Platform
+# Thoth - AI-Powered Dynasty Fantasy Football Platform
 
 ## Purpose
-Maximize KTC (KeepTradeCut) roster value using graph intelligence, temporal causality tracking, and automated AI analysis.
+Maximize KTC (KeepTradeCut) roster value using graph intelligence, ML-powered valuations (R²=0.87), and a 14-tool AI agent.
 
-## Core Components
+## Platform Architecture
 
-| Component | File | Description |
-|-----------|------|-------------|
-| Dashboard | `dashboard.py` | Streamlit web UI with player rankings, trade analyzer, roster analysis |
-| Valuation Model | `valuation_model.py` | Independent player valuations with aging curves and scarcity multipliers |
-| Neo4j Integration | `setup_neo4j.py` | Graph database for player relationships and temporal snapshots |
-| Claude AI Agent | `dynasty_agent_enhanced.py` | Conversational interface for analysis |
-| NFL Data | `nfl_data_integration.py` | Integration with nflverse for stats |
-| AI DS Team | `ai_ds_team_integration.py` | Feature engineering, EDA, and ML agents |
+### Dashboard (12 Pages)
+| Page | File | Description |
+|------|------|-------------|
+| Player Intelligence | `dashboard/pages/1_Player_Analysis.py` | 4-tab analysis: valuation, athletic, situation, history |
+| Dynasty Edge Scores | `dashboard/pages/2_Dynasty_Edge_Scores.py` | Buy/sell signals with filtering |
+| Trade Analyzer | `dashboard/pages/3_Trade_Analyzer.py` | ML-powered trade evaluation |
+| League Analysis | `dashboard/pages/4_League_Analysis.py` | Sleeper integration |
+| Market Trends | `dashboard/pages/5_Market_Trends.py` | Value tracking over time |
+| Graph Explorer | `dashboard/pages/6_Graph_Explorer.py` | Neo4j visualization |
+| AI Chat (Thoth) | `dashboard/pages/7_Chat.py` | Natural language queries |
+| Model Insights | `dashboard/pages/8_Model_Insights.py` | ML explainability |
+| Athletic Profiles | `dashboard/pages/9_Athletic_Profiles.py` | Combine data |
+| Contract Intel | `dashboard/pages/10_Contract_Intelligence.py` | Contract analysis |
+
+### Core Modules (`src/`)
+| Module | Purpose |
+|--------|---------|
+| `src/agent/` | 14-tool Thoth AI agent |
+| `src/ml/` | ML training & prediction (R²=0.87) |
+| `src/features/` | 40+ feature engineering |
+| `src/database/` | Neo4j client & queries |
+| `src/loaders/` | KTC, NFLverse, ID resolution |
+| `src/api/` | Sleeper, injury, sentiment clients |
+| `src/validation/` | Backtesting framework |
+
+### AI Agent
+| File | Description |
+|------|-------------|
+| `thoth_agent.py` | CLI agent with 14 tools |
+| `src/agent/enhanced_tools.py` | Tool implementations |
 
 ## Data Sources
-- **KTC**: KeepTradeCut crowdsourced player values
-- **Sleeper**: League rosters, standings, draft picks via API
-- **NFLverse**: Weekly stats, snap counts, Next Gen Stats
+- **KTC**: KeepTradeCut crowdsourced values
+- **Sleeper**: League rosters, standings, picks
+- **NFLverse**: Stats, combine, contracts, injuries, snaps
 
-## League Settings (Lucid Losers)
-- 10-team Superflex PPR
-- TE Premium (+0.5 PPR)
-- 28-player rosters
+## ML Model
+- **Algorithm**: Gradient Boosting (40 features)
+- **Performance**: R² = 0.87
+- **Features**: Athletic, situational, production, age curves
 
 ## Key Directories
-- `data/` - Raw CSV data files
-- `scripts/` - Data fetching scripts
-- `pipelines/` - Data processing pipelines
-- `src/` - Source modules
+- `dashboard/` - Multi-page Streamlit app
+- `src/` - Core Python modules
+- `pipelines/` - Data pipelines
+- `scripts/` - CLI utilities
+- `docs/` - Technical documentation
+- `data/` - Raw data files
