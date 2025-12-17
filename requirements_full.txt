@@ -1,0 +1,113 @@
+# Dynasty Edge - Full Requirements
+# Install with: pip install -r requirements_full.txt
+
+# =============================================================================
+# CORE DEPENDENCIES
+# =============================================================================
+
+# Neo4j Graph Database
+neo4j>=5.15.0
+
+# Data Processing
+pandas>=2.0.0
+numpy>=1.24.0
+scipy>=1.11.0
+
+# AI Agents - Anthropic Claude
+anthropic>=0.18.0
+
+# Environment
+python-dotenv>=1.0.0
+
+# =============================================================================
+# AI DATA SCIENCE TEAM (Optional but recommended)
+# =============================================================================
+
+# The main ai-data-science-team library
+ai-data-science-team>=0.0.0.9016
+
+# LangChain dependencies (required by ai-data-science-team)
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-community>=0.0.20
+langgraph>=0.0.20
+
+# OpenAI (for ai-data-science-team agents)
+openai>=1.10.0
+
+# =============================================================================
+# MACHINE LEARNING (for H2O ML Agent)
+# =============================================================================
+
+# H2O AutoML
+h2o>=3.44.0
+
+# MLflow for experiment tracking (optional)
+# mlflow>=2.10.0
+
+# Scikit-learn for additional ML utilities
+scikit-learn>=1.3.0
+
+# =============================================================================
+# DATA VISUALIZATION
+# =============================================================================
+
+# Plotly for interactive charts
+plotly>=5.18.0
+
+# =============================================================================
+# NFL DATA (nflverse)
+# =============================================================================
+
+# nflreadpy - Modern Python port of nflreadr (recommended)
+# Provides: play-by-play, weekly stats, snap counts, Next Gen Stats, rosters
+nflreadpy>=0.1.0
+
+# Polars - Fast DataFrame library (required by nflreadpy)
+polars>=0.20.0
+
+# PyArrow - For Polars/Pandas interop
+pyarrow>=14.0.0
+
+# Legacy option (deprecated but still works):
+# nfl-data-py>=0.3.3
+
+# =============================================================================
+# WEB SCRAPING (for KTC data)
+# =============================================================================
+
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+selenium>=4.15.0
+
+# =============================================================================
+# API & SERVER (Optional - for web interface)
+# =============================================================================
+
+# FastAPI server
+# fastapi>=0.109.0
+# uvicorn>=0.27.0
+
+# Streamlit dashboard
+# streamlit>=1.30.0
+
+# =============================================================================
+# INSTALLATION NOTES
+# =============================================================================
+
+# 1. Basic installation (Neo4j + Claude only):
+#    pip install neo4j pandas anthropic python-dotenv
+#
+# 2. With AI Data Science Team:
+#    pip install ai-data-science-team langchain-openai
+#
+# 3. With H2O ML:
+#    pip install h2o
+#
+# 4. Full installation:
+#    pip install -r requirements_full.txt
+#
+# 5. Java is required for H2O:
+#    - Mac: brew install openjdk@11
+#    - Ubuntu: sudo apt install openjdk-11-jdk
+#    - Windows: Download from https://adoptium.net/
