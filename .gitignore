@@ -1,0 +1,21 @@
+# Environment
+.env
+venv/
+__pycache__/
+
+# Data (large files, fetched dynamically)
+data/
+
+# Screenshots
+*.png
+
+# Logs
+*.log
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store

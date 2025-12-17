@@ -37,6 +37,11 @@ jobs:
           python scripts/fetch_ktc_data.py
         continue-on-error: true  # KTC scraping may occasionally fail
 
+      - name: 📦 Archive KTC snapshot for ML training
+        run: |
+          python scripts/archive_ktc_snapshot.py
+        continue-on-error: true
+
       - name: 🔄 Fetch Sleeper data
         run: |
           python scripts/fetch_sleeper_data.py
