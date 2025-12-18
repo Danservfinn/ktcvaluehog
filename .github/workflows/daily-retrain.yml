@@ -1,0 +1,264 @@
+# Daily ML Model Retraining Workflow
+# ===================================
+#
+# Automatically retrains Dynasty Edge ML models daily to:
+# - Incorporate new player performance data
+# - Update KTC value trends (changes daily)
+# - Refresh injury and team strength features
+#
+# Cost Analysis (GitHub Actions):
+# - Public repos: Unlimited free minutes
+# - Private repos: ~15-20 min/run × 30 days = ~450-600 min/month (within free tier)
+#
+# Target: Maintain R² >= 0.88 with fresh data
+
+name: Daily ML Retrain
+
+on:
+  # Run every day at noon UTC (7am EST / 4am PST)
+  schedule:
+    - cron: '0 12 * * *'
+
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      compare_baseline:
+        description: 'Compare with baseline model'
+        required: false
+        default: 'true'
+        type: boolean
+      force_deploy:
+        description: 'Deploy even if R² drops'
+        required: false
+        default: 'false'
+        type: boolean
+      skip_cache_check:
+        description: 'Force retrain even if data unchanged'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Prevent concurrent runs to save minutes
+concurrency:
+  group: ml-retrain
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: '3.11'
+  MIN_R2_THRESHOLD: 0.88
+
+jobs:
+  check-data-freshness:
+    name: Check Data Freshness
+    runs-on: ubuntu-latest
+    outputs:
+      should_train: ${{ steps.check.outputs.should_train }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for data changes
+        id: check
+        run: |
+          # Always train on manual dispatch with skip_cache_check
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ inputs.skip_cache_check }}" == "true" ]; then
+            echo "Manual trigger with force - will train"
+            echo "should_train=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Check if models were updated in last 20 hours (avoid duplicate daily runs)
+          LAST_MODEL_COMMIT=$(git log -1 --format="%ct" -- data/models/ 2>/dev/null || echo "0")
+          CURRENT_TIME=$(date +%s)
+          HOURS_SINCE=$((($CURRENT_TIME - $LAST_MODEL_COMMIT) / 3600))
+
+          if [ "$HOURS_SINCE" -lt 20 ]; then
+            echo "Models updated $HOURS_SINCE hours ago - skipping"
+            echo "should_train=false" >> $GITHUB_OUTPUT
+          else
+            echo "Models are $HOURS_SINCE hours old - will train"
+            echo "should_train=true" >> $GITHUB_OUTPUT
+          fi
+
+  retrain:
+    name: Retrain ML Models
+    needs: check-data-freshness
+    if: needs.check-data-freshness.outputs.should_train == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+          cache-dependency-path: 'requirements_full.txt'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements_full.txt
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install lightgbm  # Important for optimal performance
+
+      - name: Create logs directory
+        run: mkdir -p logs
+
+      - name: Run optimized training
+        id: train
+        env:
+          NEO4J_URI: ${{ secrets.NEO4J_URI }}
+          NEO4J_USER: ${{ secrets.NEO4J_USER }}
+          NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD }}
+        run: |
+          LOGFILE="logs/training_$(date +%Y%m%d_%H%M%S).log"
+
+          python scripts/train_optimized_models.py \
+            --compare-baseline \
+            --output-dir data/models 2>&1 | tee "$LOGFILE"
+
+          # Extract R² from output
+          R2=$(grep "Ensemble R²" "$LOGFILE" | tail -1 | awk '{print $NF}')
+          RMSE=$(grep "RMSE:" "$LOGFILE" | tail -1 | awk '{print $2}')
+
+          echo "r2_score=$R2" >> $GITHUB_OUTPUT
+          echo "rmse=$RMSE" >> $GITHUB_OUTPUT
+          echo "logfile=$LOGFILE" >> $GITHUB_OUTPUT
+          echo "Current R² score: $R2, RMSE: $RMSE"
+
+      - name: Validate model performance
+        id: validate
+        run: |
+          R2=${{ steps.train.outputs.r2_score }}
+          MIN=${{ env.MIN_R2_THRESHOLD }}
+
+          # Handle empty R2 (training failure)
+          if [ -z "$R2" ]; then
+            echo "ERROR: Could not extract R² score - training may have failed"
+            echo "deploy=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          if (( $(echo "$R2 >= $MIN" | bc -l) )); then
+            echo "Model meets minimum R² threshold ($R2 >= $MIN)"
+            echo "deploy=true" >> $GITHUB_OUTPUT
+          else
+            echo "WARNING: R² ($R2) below threshold ($MIN)"
+            if [ "${{ inputs.force_deploy }}" == "true" ]; then
+              echo "Force deploy enabled - proceeding anyway"
+              echo "deploy=true" >> $GITHUB_OUTPUT
+            else
+              echo "deploy=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Upload model artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: trained-models-${{ github.run_number }}
+          path: |
+            data/models/*.pkl
+            data/models/*.pt
+            data/models/*.json
+          retention-days: 7  # Reduced for daily runs
+
+      - name: Upload training logs
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: training-logs-${{ github.run_number }}
+          path: logs/
+          retention-days: 7
+
+      - name: Commit updated models
+        if: steps.validate.outputs.deploy == 'true'
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+
+          git add data/models/
+          git diff --staged --quiet || git commit -m "chore: daily ML model retrain (R²=${{ steps.train.outputs.r2_score }})
+
+          Automated model retraining via GitHub Actions.
+
+          - Ensemble R²: ${{ steps.train.outputs.r2_score }}
+          - RMSE: ${{ steps.train.outputs.rmse }} PPG
+          - Training date: $(date +%Y-%m-%d)
+          - Optimizations: stacking, attention, huber loss"
+
+          git push
+
+      - name: Trigger Railway deployment
+        if: steps.validate.outputs.deploy == 'true'
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ -n "$RAILWAY_TOKEN" ]; then
+            echo "Triggering Railway deployment..."
+            echo "Deployment triggered via git push"
+          else
+            echo "RAILWAY_TOKEN not set - skipping deployment trigger"
+          fi
+
+      - name: Update model registry
+        if: steps.validate.outputs.deploy == 'true'
+        run: |
+          # Register model in registry for tracking
+          python -c "
+          from src.ml.model_registry import ModelRegistry
+          from datetime import datetime
+
+          registry = ModelRegistry('data/models')
+          registry.register_model(
+              model_type='stacked_ensemble',
+              version='daily_$(date +%Y%m%d)',
+              metrics={
+                  'r2': float('${{ steps.train.outputs.r2_score }}'),
+                  'rmse': float('${{ steps.train.outputs.rmse }}' or '0')
+              },
+              config={
+                  'stacking': True,
+                  'attention': True,
+                  'huber': True,
+                  'trained_date': datetime.now().isoformat()
+              },
+              set_production=True
+          )
+          print('Model registered in registry')
+          " 2>/dev/null || echo "Registry update skipped (optional)"
+
+  notify:
+    name: Send Notifications
+    needs: [check-data-freshness, retrain]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Report skipped
+        if: needs.check-data-freshness.outputs.should_train == 'false'
+        run: |
+          echo "ML Retraining skipped - models are fresh"
+
+      - name: Report success
+        if: needs.retrain.result == 'success'
+        run: |
+          echo "ML Retraining completed successfully"
+          # Add Slack/Discord notification here if needed:
+          # curl -X POST -H 'Content-type: application/json' \
+          #   --data '{"text":"Daily ML retrain complete"}' \
+          #   ${{ secrets.SLACK_WEBHOOK }}
+
+      - name: Report failure
+        if: needs.retrain.result == 'failure'
+        run: |
+          echo "ML Retraining failed!"
+          # Add failure notification here
