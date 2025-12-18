@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   Card,
@@ -26,9 +26,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
-  const { signInWithEmail, signInAsAdmin, user, loading: authLoading } = useAuth();
+  const searchParams = useSearchParams();
+  const { signInWithEmail, signInAsAdmin, user, loading: authLoading, logout } = useAuth();
 
   const [mode, setMode] = useState<"email" | "admin">("admin");
   const [email, setEmail] = useState("");
@@ -38,9 +39,31 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [forceLogout, setForceLogout] = useState(false);
 
-  // If already logged in, redirect with hard refresh
-  if (user && !authLoading) {
+  // Check for ?logout query param to force clear session
+  useEffect(() => {
+    if (searchParams.get("logout") === "true") {
+      setForceLogout(true);
+      logout().then(() => {
+        // Clear the URL param without reload
+        window.history.replaceState({}, "", "/login");
+        setForceLogout(false);
+      });
+    }
+  }, [searchParams, logout]);
+
+  // Show loading while auth is initializing or during force logout
+  if (authLoading || forceLogout) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // If already logged in (and not force logout), redirect
+  if (user) {
     if (typeof window !== "undefined") {
       window.location.href = "/";
     }
@@ -293,5 +316,19 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }
