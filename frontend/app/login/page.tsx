@@ -64,10 +64,10 @@ function LoginForm() {
     );
   }
 
-  // If already logged in (and not trying to logout), redirect
+  // If already logged in (and not trying to logout), redirect to dashboard
   if (user && !shouldLogout) {
     if (typeof window !== "undefined") {
-      window.location.href = "/";
+      window.location.href = "/trade";
     }
     return null;
   }
@@ -80,7 +80,7 @@ function LoginForm() {
     try {
       await signInWithEmail(email, password);
       setSuccess(true);
-      setTimeout(() => window.location.href = "/", 1000);
+      setTimeout(() => window.location.href = "/trade", 1000);
     } catch (err: any) {
       setError(err.message || "Login failed");
     } finally {
@@ -98,7 +98,7 @@ function LoginForm() {
       if (success) {
         setSuccess(true);
         // Use hard redirect to ensure auth context re-initializes from localStorage
-        setTimeout(() => window.location.href = "/", 1000);
+        setTimeout(() => window.location.href = "/trade", 1000);
       } else {
         setError("Invalid admin password");
       }
