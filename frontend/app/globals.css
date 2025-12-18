@@ -1,0 +1,515 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   THOTH DESIGN SYSTEM - LIGHT THEME
+   Premium Dynasty Fantasy Football Analytics
+   ============================================ */
+
+@layer base {
+  :root {
+    /* Thoth Premium Light Theme */
+    --background: 40 33% 98%;
+    --foreground: 240 10% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 10%;
+    --primary: 43 74% 42%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 40 20% 94%;
+    --secondary-foreground: 240 5.9% 15%;
+    --muted: 40 15% 92%;
+    --muted-foreground: 240 3.8% 46%;
+    --accent: 192 85% 35%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 15% 88%;
+    --input: 40 15% 90%;
+    --ring: 43 74% 42%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Dark mode alternative */
+    --background: 240 17% 4%;
+    --foreground: 0 0% 98%;
+    --card: 240 17% 6%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 17% 6%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 43 74% 49%;
+    --primary-foreground: 240 17% 4%;
+    --secondary: 240 10% 12%;
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 10% 12%;
+    --muted-foreground: 240 5% 55%;
+    --accent: 192 91% 36%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 10% 14%;
+    --input: 240 10% 14%;
+    --ring: 43 74% 49%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Premium selection color */
+  ::selection {
+    background-color: hsl(43 74% 49% / 0.2);
+    color: inherit;
+  }
+}
+
+/* ============================================
+   PREMIUM TYPOGRAPHY
+   ============================================ */
+
+@layer utilities {
+  .text-gradient-gold {
+    @apply bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 bg-clip-text text-transparent;
+  }
+
+  .text-gradient-premium {
+    @apply bg-gradient-to-r from-amber-500 via-amber-600 to-amber-500 bg-clip-text text-transparent;
+  }
+
+  .text-gradient-cyan {
+    @apply bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* ============================================
+   THOTH BRAND GRADIENTS - LIGHT THEME
+   ============================================ */
+
+.gradient-gold {
+  background: linear-gradient(135deg, #C9A227 0%, #A67C00 100%);
+}
+
+.gradient-gold-shimmer {
+  background: linear-gradient(
+    90deg,
+    #A67C00 0%,
+    #C9A227 25%,
+    #E6C200 50%,
+    #C9A227 75%,
+    #A67C00 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+}
+
+.gradient-light {
+  background: linear-gradient(180deg, hsl(40, 33%, 98%) 0%, hsl(40, 20%, 96%) 100%);
+}
+
+.gradient-radial-gold {
+  background: radial-gradient(ellipse at top, hsl(43, 74%, 49%, 0.08) 0%, transparent 50%);
+}
+
+.gradient-radial-accent {
+  background: radial-gradient(ellipse at center, hsl(192, 85%, 35%, 0.06) 0%, transparent 70%);
+}
+
+/* Premium hero gradient background - Light */
+.gradient-hero {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, hsl(43, 74%, 49%, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 50%, hsl(192, 85%, 35%, 0.06) 0%, transparent 50%),
+    linear-gradient(180deg, hsl(40, 33%, 99%) 0%, hsl(40, 20%, 97%) 100%);
+}
+
+/* ============================================
+   GLASSMORPHISM EFFECTS - LIGHT THEME
+   ============================================ */
+
+.glass {
+  @apply bg-white/70 backdrop-blur-xl border border-border/60 shadow-sm;
+}
+
+.glass-strong {
+  @apply bg-white/85 backdrop-blur-2xl border border-border/70 shadow-md;
+}
+
+.glass-subtle {
+  @apply bg-white/50 backdrop-blur-md border border-border/40;
+}
+
+/* Premium card hover effect */
+.card-hover {
+  @apply transition-all duration-300 ease-out;
+}
+
+.card-hover:hover {
+  @apply border-primary/40 shadow-lg shadow-primary/10 -translate-y-0.5;
+}
+
+/* ============================================
+   PREMIUM GLOW EFFECTS - LIGHT THEME
+   ============================================ */
+
+.glow-gold {
+  box-shadow:
+    0 4px 20px hsl(43, 74%, 49%, 0.15),
+    0 0 40px hsl(43, 74%, 49%, 0.08);
+}
+
+.glow-gold-strong {
+  box-shadow:
+    0 4px 30px hsl(43, 74%, 49%, 0.2),
+    0 0 60px hsl(43, 74%, 49%, 0.12),
+    0 0 90px hsl(43, 74%, 49%, 0.06);
+}
+
+.glow-accent {
+  box-shadow:
+    0 4px 20px hsl(192, 85%, 35%, 0.15),
+    0 0 40px hsl(192, 85%, 35%, 0.08);
+}
+
+/* Text glow - subtle for light theme */
+.text-glow-gold {
+  text-shadow: 0 0 30px hsl(43, 74%, 49%, 0.3);
+}
+
+/* ============================================
+   POSITION COLORS (Dynasty Fantasy) - LIGHT
+   ============================================ */
+
+.position-qb { @apply text-amber-600; }
+.position-rb { @apply text-emerald-600; }
+.position-wr { @apply text-sky-600; }
+.position-te { @apply text-purple-600; }
+.position-pk { @apply text-pink-600; }
+.position-def { @apply text-orange-600; }
+
+.position-qb-bg { @apply bg-amber-100 text-amber-700 border-amber-300; }
+.position-rb-bg { @apply bg-emerald-100 text-emerald-700 border-emerald-300; }
+.position-wr-bg { @apply bg-sky-100 text-sky-700 border-sky-300; }
+.position-te-bg { @apply bg-purple-100 text-purple-700 border-purple-300; }
+
+/* ============================================
+   TREND INDICATORS - LIGHT THEME
+   ============================================ */
+
+.trend-up { @apply text-emerald-600; }
+.trend-down { @apply text-rose-600; }
+.trend-neutral { @apply text-muted-foreground; }
+
+.trend-badge-up {
+  @apply bg-emerald-100 text-emerald-700 border border-emerald-300;
+}
+
+.trend-badge-down {
+  @apply bg-rose-100 text-rose-700 border border-rose-300;
+}
+
+/* ============================================
+   PREMIUM TIER BADGES - LIGHT THEME
+   ============================================ */
+
+.tier-free {
+  @apply bg-slate-100 text-slate-700 border border-slate-300;
+}
+
+.tier-pro {
+  @apply bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-sm;
+}
+
+.tier-elite {
+  @apply bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-semibold shadow-md shadow-amber-200;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 4px 20px hsl(43, 74%, 49%, 0.15);
+  }
+  50% {
+    box-shadow: 0 4px 30px hsl(43, 74%, 49%, 0.25);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scale-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.6s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.3s ease-out forwards;
+}
+
+/* Staggered animation delays */
+.animate-delay-1 { animation-delay: 0.1s; }
+.animate-delay-2 { animation-delay: 0.2s; }
+.animate-delay-3 { animation-delay: 0.3s; }
+.animate-delay-4 { animation-delay: 0.4s; }
+.animate-delay-5 { animation-delay: 0.5s; }
+
+/* ============================================
+   PREMIUM SCROLLBAR - LIGHT THEME
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(40, 20%, 96%);
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(40, 15%, 80%);
+  border-radius: 5px;
+  border: 2px solid hsl(40, 20%, 96%);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(40, 15%, 70%);
+}
+
+/* ============================================
+   PREMIUM TABLE STYLES - LIGHT THEME
+   ============================================ */
+
+.table-premium {
+  @apply w-full border-collapse;
+}
+
+.table-premium thead {
+  @apply sticky top-0 bg-white/95 backdrop-blur-sm z-10;
+}
+
+.table-premium th {
+  @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground border-b border-border;
+}
+
+.table-premium td {
+  @apply px-4 py-3 text-sm border-b border-border/50;
+}
+
+.table-premium tbody tr {
+  @apply transition-colors hover:bg-muted/50;
+}
+
+/* ============================================
+   PREMIUM INPUT FOCUS - LIGHT THEME
+   ============================================ */
+
+.input-premium {
+  @apply bg-white border-border transition-all duration-200;
+}
+
+.input-premium:focus {
+  @apply border-primary/60 ring-2 ring-primary/15 bg-white;
+}
+
+/* ============================================
+   THOTH LOGO ANIMATION
+   ============================================ */
+
+.thoth-logo {
+  @apply relative;
+}
+
+.thoth-logo::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(135deg, #C9A227 0%, #E6C200 50%, #C9A227 100%);
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+.thoth-logo:hover::before {
+  opacity: 0.5;
+}
+
+/* ============================================
+   PREMIUM CARDS - LIGHT THEME SPECIFIC
+   ============================================ */
+
+.card-elevated {
+  @apply bg-white border border-border/60 shadow-lg shadow-black/5;
+}
+
+.card-premium {
+  @apply bg-gradient-to-br from-amber-50 via-white to-amber-50/50 border border-amber-200/60;
+}
+
+/* ============================================
+   BADGE VARIANTS - LIGHT THEME
+   ============================================ */
+
+.badge-premium {
+  @apply bg-gradient-to-r from-amber-400 via-yellow-300 to-amber-400 text-amber-900 font-semibold shadow-sm;
+}
+
+.badge-pro {
+  @apply bg-gradient-to-r from-cyan-400 to-blue-500 text-white font-medium shadow-sm;
+}
+
+.badge-elite {
+  @apply bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-semibold shadow-md shadow-amber-200/50;
+}
+
+/* ============================================
+   BUTTON ENHANCEMENTS - LIGHT THEME
+   ============================================ */
+
+.btn-premium {
+  @apply bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-semibold;
+  @apply shadow-lg shadow-amber-300/40 hover:shadow-xl hover:shadow-amber-300/50;
+  @apply hover:brightness-105 active:scale-[0.98];
+}
+
+.btn-premium-outline {
+  @apply border-2 border-amber-400 text-amber-700 bg-amber-50;
+  @apply hover:bg-amber-100 hover:border-amber-500;
+}
+
+/* ============================================
+   NAV & SIDEBAR - LIGHT THEME
+   ============================================ */
+
+.nav-glass {
+  @apply bg-white/80 backdrop-blur-xl border-b border-border/50 shadow-sm;
+}
+
+.sidebar-glass {
+  @apply bg-white/90 backdrop-blur-xl border-r border-border/50;
+}
+
+.nav-item-active {
+  @apply bg-primary/10 text-primary border-l-2 border-primary;
+}
+
+/* ============================================
+   RESPONSIVE UTILITIES
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   DARK MODE OVERRIDES (when .dark is applied)
+   ============================================ */
+
+.dark .glass {
+  @apply bg-card/60 backdrop-blur-xl border-border/50 shadow-none;
+}
+
+.dark .glass-strong {
+  @apply bg-card/80 backdrop-blur-2xl border-border/60;
+}
+
+.dark .card-elevated {
+  @apply bg-card border-border shadow-xl shadow-black/20;
+}
+
+.dark .card-premium {
+  @apply bg-gradient-to-br from-amber-900/20 via-card to-amber-900/10 border-amber-500/30;
+}
+
+.dark .nav-glass {
+  @apply bg-background/80 backdrop-blur-xl border-border/50;
+}
+
+.dark .sidebar-glass {
+  @apply bg-card/90 backdrop-blur-xl border-border/50;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: hsl(240, 17%, 6%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(240, 10%, 20%);
+  border-color: hsl(240, 17%, 6%);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(240, 10%, 30%);
+}
+
+.dark .position-qb-bg { @apply bg-amber-500/20 text-amber-400 border-amber-500/30; }
+.dark .position-rb-bg { @apply bg-emerald-500/20 text-emerald-400 border-emerald-500/30; }
+.dark .position-wr-bg { @apply bg-sky-500/20 text-sky-400 border-sky-500/30; }
+.dark .position-te-bg { @apply bg-purple-500/20 text-purple-400 border-purple-500/30; }
+
+.dark .trend-badge-up { @apply bg-emerald-500/15 text-emerald-400 border-emerald-500/30; }
+.dark .trend-badge-down { @apply bg-rose-500/15 text-rose-400 border-rose-500/30; }
+
+.dark .gradient-hero {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, hsl(43, 74%, 49%, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 50%, hsl(192, 91%, 36%, 0.08) 0%, transparent 50%),
+    hsl(240, 17%, 4%);
+}
