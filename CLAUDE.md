@@ -1,7 +1,7 @@
-# Dynasty Edge - Claude Code Instructions
+# Thoth - Claude Code Instructions
 
 ## Project Overview
-Dynasty fantasy football analysis platform using Neo4j graph database, KTC valuations, and Claude AI (BYOK).
+Thoth - Dynasty fantasy football analysis platform using Neo4j graph database, KTC valuations, and Claude AI (BYOK). Named after the Egyptian god of wisdom and knowledge.
 
 ## Production Architecture (v2 - Next.js + FastAPI)
 
@@ -20,7 +20,7 @@ Dynasty fantasy football analysis platform using Neo4j graph database, KTC valua
 ```
 
 ### Cost: ~$5-15/month
-- Frontend: Cloudflare Pages (FREE, unlimited bandwidth)
+- Frontend: Cloudflare Pages (FREE, unlimited requests)
 - Backend + DB: Railway Hobby ($5-10/mo)
 - Auth: Supabase Free tier
 - AI: BYOK (users provide own Anthropic API key)
@@ -28,8 +28,8 @@ Dynasty fantasy football analysis platform using Neo4j graph database, KTC valua
 ### Production URLs
 | Service | URL |
 |---------|-----|
-| Frontend (Vercel) | `https://frontend-jvxdlwhwi-dannys-projects-de68569e.vercel.app` |
-| Backend API | `https://api.dynastyedge.com` (TBD) |
+| Frontend (Cloudflare) | `https://dynastyedge.pages.dev` |
+| Backend API | `https://dynasty-api-production.up.railway.app` |
 | Neo4j HTTP | `https://sparkling-commitment-production.up.railway.app` |
 | Neo4j Browser | `https://sparkling-commitment-production.up.railway.app/browser/` |
 
@@ -65,18 +65,19 @@ All UI elements follow Miller's Law - humans can hold 7±2 items in working memo
 - `deploy/exports/` - Database export files (Cypher)
 - `scripts/export_neo4j.py` - Database export script
 
-## Next.js Frontend (NEW)
+## Next.js Frontend
 
 ### Directory Structure
 ```
 frontend/
 ├── app/
 │   ├── page.tsx                    # Landing page (7 Miller's Law sections)
-│   ├── layout.tsx                  # Root layout with dark mode
+│   ├── layout.tsx                  # Root layout + AuthProvider
 │   ├── globals.css                 # CSS vars, position colors, trends
+│   ├── login/page.tsx              # Login page (Admin/Email modes)
 │   ├── pricing/page.tsx            # 3-tier pricing comparison
 │   └── (dashboard)/
-│       ├── layout.tsx              # 7-item nav sidebar
+│       ├── layout.tsx              # 7-item nav sidebar + user state
 │       ├── page.tsx                # Dashboard (5 widgets)
 │       ├── players/page.tsx        # Player search
 │       ├── rankings/page.tsx       # 7-column rankings table
@@ -86,26 +87,74 @@ frontend/
 │       └── settings/page.tsx       # API key management
 ├── components/ui/                   # shadcn-style components
 │   ├── button.tsx                  # Button with asChild support
-│   ├── card.tsx                    # Card components
+│   ├── card.tsx                    # Card variants (glass, premium, elevated)
 │   ├── badge.tsx                   # Position-colored badges
 │   └── input.tsx                   # Input component
+├── contexts/
+│   └── auth-context.tsx            # Auth provider (admin bypass + Supabase)
 ├── lib/
 │   ├── utils.ts                    # cn() utility
 │   ├── api.ts                      # FastAPI client
+│   ├── supabase.ts                 # Supabase client (lazy init)
 │   └── byok.ts                     # BYOK key management
-├── next.config.mjs                 # Static export for Cloudflare
-├── tailwind.config.ts              # Dynasty brand colors
+├── next.config.mjs                 # Static export config
+├── tailwind.config.ts              # Thoth brand colors
+├── wrangler.toml                   # Cloudflare Pages config
 └── package.json                    # Next.js 14, Tailwind, Recharts
 ```
 
 ### Key Features Built
 - **Miller's Law UI**: All elements follow 7±2 principle
-- **Static Export**: `output: "export"` for Cloudflare Pages
+- **Static Export**: `output: "export"` for Cloudflare Pages static hosting
 - **BYOK Pattern**: API keys stored in localStorage, never on server
-- **Tier Gating**: Elite features require subscription
-- **Dark Mode**: Full dark theme with CSS variables
-- **Position Colors**: QB gold, RB green, WR blue, TE purple
-- **Trend Indicators**: Rising/falling animations
+- **Auth System**: Admin bypass + Supabase integration for tier gating
+- **Tier Gating**: Elite features require authentication
+- **Light Theme**: Professional warm cream/gold theme with glass effects
+- **Position Colors**: QB amber, RB emerald, WR sky, TE purple
+- **Trend Indicators**: Rising/falling with color coding (emerald/rose)
+- **Suspense Boundaries**: Proper handling for useSearchParams in static export
+
+### Authentication
+
+#### Admin Login (Testing)
+For testing Elite features without Supabase:
+1. Navigate to `/login`
+2. Use Admin tab (default)
+3. Password: `thoth2025elite`
+4. Session lasts 24 hours (localStorage)
+
+#### Auth Context Usage
+```typescript
+import { useAuth } from "@/contexts/auth-context";
+
+function MyComponent() {
+  const { user, isElite, isPro, loading, logout } = useAuth();
+
+  if (loading) return <Loading />;
+  if (!isElite) return <UpgradePrompt />;
+
+  return <EliteContent />;
+}
+```
+
+#### Supabase (Production)
+When configured, auth uses Supabase:
+- Email/password authentication
+- User tier from `app_metadata.tier`
+- Falls back to admin bypass when unavailable
+
+### Theme Design
+```css
+/* Light theme CSS variables */
+--background: 40 33% 98%;        /* Warm cream */
+--foreground: 240 10% 10%;       /* Near black text */
+--primary: 43 74% 42%;           /* Gold accent */
+--card: 0 0% 100%;               /* White cards */
+--secondary: 40 20% 94%;         /* Light secondary */
+
+/* Glass effects */
+.glass { background: white/70; backdrop-blur: xl; }
+```
 
 ### Run Frontend
 ```bash
@@ -117,6 +166,17 @@ cd frontend && npm install && npm run dev
 ```bash
 cd frontend && npm run build
 # Output in frontend/out/ for Cloudflare Pages
+```
+
+### Deploy to Cloudflare Pages
+```bash
+# First time: login to Cloudflare
+npx wrangler login
+
+# Deploy to Cloudflare Pages
+npx wrangler pages deploy out --project-name=dynastyedge
+
+# Or via Cloudflare dashboard: Direct Upload to dynastyedge project
 ```
 
 ## Knowledge Base Maintenance

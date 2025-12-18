@@ -1,15 +1,41 @@
 ---
-type: code_index
 title: Next.js 14 Frontend Architecture
-tags: [frontend, nextjs, react, tailwind, miller-law]
-created: 2025-01-17
+link: nextjs-frontend
+type: code_index
+ontological_relations: []
+tags:
+- frontend
+- nextjs
+- react
+- tailwind
+- miller-law
+- cloudflare-pages
+- light-theme
+created_at: 2025-12-17T00:00:00Z
+updated_at: 2025-12-18T00:00:00Z
+uuid: e5f6a7b8-c9d0-1234-ef56-789012345678
 ---
 
 # Next.js 14 Frontend Architecture
 
 ## Overview
 
-Dynasty Edge frontend built with Next.js 14 App Router, configured for static export to Cloudflare Pages. Implements Miller's Law (7±2 principle) throughout the UI design.
+Thoth frontend built with Next.js 14 App Router, deployed to Cloudflare Pages. Implements Miller's Law (7±2 principle) throughout the UI design with a professional light theme.
+
+## Deployment
+
+| Platform | URL | Status |
+|----------|-----|--------|
+| Cloudflare Pages | `https://dynastyedge.pages.dev` | Live |
+
+### Deploy Commands
+```bash
+# First time: login to Cloudflare
+npx wrangler login
+
+# Deploy to Cloudflare Pages
+npx wrangler pages deploy out --project-name=dynastyedge
+```
 
 ## Key Design Principles
 
@@ -21,11 +47,38 @@ All UI elements follow cognitive load best practices:
 - **Search Results**: 7 items initially
 - **Trade Form**: Max 5 players per side
 
+### Light Theme Design
+Professional warm cream/gold theme:
+```css
+/* Core CSS Variables */
+--background: 40 33% 98%;        /* Warm cream */
+--foreground: 240 10% 10%;       /* Near black text */
+--primary: 43 74% 42%;           /* Gold accent */
+--card: 0 0% 100%;               /* White cards */
+--secondary: 40 20% 94%;         /* Light secondary */
+--border: 40 15% 88%;            /* Soft borders */
+
+/* Glass effects for light mode */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+```
+
+### Position Colors (Light-optimized)
+```css
+/* Using 500-600 shades for visibility on light backgrounds */
+QB: text-amber-600, bg-amber-100, border-amber-300
+RB: text-emerald-600, bg-emerald-100, border-emerald-300
+WR: text-sky-600, bg-sky-100, border-sky-300
+TE: text-purple-600, bg-purple-100, border-purple-300
+```
+
 ### BYOK (Bring Your Own Key)
 - Anthropic API keys stored in localStorage only
 - Never transmitted to our servers
-- Encrypted with session token
-- Used directly for Claude API calls
+- Used directly for Claude API calls via backend proxy
 
 ## Directory Structure
 
@@ -33,11 +86,12 @@ All UI elements follow cognitive load best practices:
 frontend/
 ├── app/
 │   ├── page.tsx                    # Landing (7 sections)
-│   ├── layout.tsx                  # Root layout
+│   ├── layout.tsx                  # Root layout + AuthProvider
 │   ├── globals.css                 # CSS variables
+│   ├── login/page.tsx              # Login page (Admin/Email modes)
 │   ├── pricing/page.tsx            # Tier comparison
-│   └── (dashboard)/                # Auth-required routes
-│       ├── layout.tsx              # Sidebar nav
+│   └── (dashboard)/                # Dashboard routes
+│       ├── layout.tsx              # Sidebar nav + user state
 │       ├── page.tsx                # Dashboard home
 │       ├── players/page.tsx        # Player search
 │       ├── rankings/page.tsx       # Rankings table
@@ -46,11 +100,20 @@ frontend/
 │       ├── chat/page.tsx           # Thoth AI (Elite)
 │       └── settings/page.tsx       # Settings
 ├── components/ui/                   # UI components
+│   ├── button.tsx                  # Button variants
+│   ├── card.tsx                    # Card variants
+│   ├── badge.tsx                   # Position + status badges
+│   └── input.tsx                   # Form inputs
+├── contexts/
+│   └── auth-context.tsx            # Auth provider (admin bypass + Supabase)
 ├── lib/
 │   ├── utils.ts                    # cn() utility
 │   ├── api.ts                      # FastAPI client
+│   ├── supabase.ts                 # Supabase client (lazy init)
 │   └── byok.ts                     # BYOK management
-└── next.config.mjs                 # Static export config
+├── next.config.mjs                 # Static export config
+├── wrangler.toml                   # Cloudflare Pages config
+└── package.json                    # Dependencies
 ```
 
 ## Configuration
@@ -58,7 +121,7 @@ frontend/
 ### next.config.mjs
 ```javascript
 const nextConfig = {
-  output: "export",  // Static HTML for Cloudflare Pages
+  output: "export",  // Static HTML for Vercel
   images: { unoptimized: true },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
@@ -66,64 +129,77 @@ const nextConfig = {
 };
 ```
 
-### Tailwind Theme
-```typescript
-// Dynasty brand colors
-colors: {
-  dynasty: {
-    gold: "#f59e0b",      // Primary accent
-    dark: "#1a1a2e",      // Background
-    card: "#16213e",      // Card backgrounds
-    border: "#0f3460",    // Borders
-  },
-  position: {
-    qb: "#f59e0b",        // Gold
-    rb: "#22c55e",        // Green
-    wr: "#3b82f6",        // Blue
-    te: "#a855f7",        // Purple
-  }
-}
+### wrangler.toml
+```toml
+name = "dynastyedge"
+compatibility_date = "2024-12-01"
+pages_build_output_dir = "out"
+
+[vars]
+NEXT_PUBLIC_API_URL = "https://dynasty-api-production.up.railway.app"
 ```
 
 ## Key Components
 
-### API Client (lib/api.ts)
+### Card Variants
 ```typescript
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-
-export const api = {
-  players: {
-    search: (params) => fetch(`${API_URL}/api/v1/players/search?${params}`),
-    get: (id) => fetch(`${API_URL}/api/v1/players/${id}`),
-    compare: (ids) => fetch(`${API_URL}/api/v1/players/compare`, { method: 'POST', body: JSON.stringify({ player_ids: ids }) }),
-  },
-  rankings: {
-    get: (params) => fetch(`${API_URL}/api/v1/rankings?${params}`),
-  },
-  // ... more endpoints
+const variants = {
+  default: "rounded-xl border bg-card shadow-sm",
+  glass: "rounded-xl border border-border/60 bg-white/70 backdrop-blur-xl shadow-sm",
+  premium: "rounded-xl border border-amber-200/80 bg-gradient-to-br from-amber-50 via-white to-amber-50/50 shadow-lg shadow-amber-200/30",
+  elevated: "rounded-xl border border-border/60 bg-white shadow-lg shadow-black/5",
 };
 ```
 
-### BYOK Manager (lib/byok.ts)
+### Button Variants
 ```typescript
-export function setAnthropicKey(key: string): void {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('anthropic_api_key', key);
-  }
-}
+const buttonVariants = {
+  default: "bg-primary text-primary-foreground shadow-md hover:bg-primary/90",
+  premium: "bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black font-semibold shadow-lg shadow-amber-300/40",
+  glass: "bg-white/70 backdrop-blur-xl border border-border/60 text-foreground hover:bg-white/90",
+  outline: "border border-border bg-white hover:bg-secondary",
+};
+```
 
-export function getAnthropicKey(): string | null {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('anthropic_api_key');
-  }
-  return null;
-}
+## Authentication System
 
-export async function chatWithClaude(messages, options?) {
-  const apiKey = getAnthropicKey();
-  // Direct call to backend with user's key in header
+### Admin Login (Testing)
+For testing Elite features without Supabase:
+1. Go to `/login`
+2. Use Admin tab (default)
+3. Password: `thoth2025elite`
+4. Session lasts 24 hours (stored in localStorage)
+
+### Auth Context (`contexts/auth-context.tsx`)
+```typescript
+const { user, isElite, isPro, loading, logout } = useAuth();
+
+// User object when logged in:
+{
+  id: "admin",
+  email: "admin@thoth.local",
+  tier: "elite"  // "free" | "pro" | "elite"
 }
 ```
+
+### Protected Pages
+Elite-gated pages use the auth context:
+```typescript
+function ProjectionsContent() {
+  const { isElite, loading: authLoading } = useAuth();
+
+  if (authLoading) return <Loading />;
+  if (!isElite) return <UpgradePrompt />;
+
+  return <ActualContent />;
+}
+```
+
+### Supabase Integration
+When Supabase is configured (env vars set), the auth context:
+- Uses Supabase for email/password auth
+- Reads user tier from `app_metadata.tier`
+- Falls back to admin bypass when Supabase unavailable
 
 ## Tier Gating
 
@@ -154,14 +230,10 @@ npm run build
 
 # Type check
 npm run lint
+
+# Deploy to Cloudflare Pages
+npx wrangler pages deploy out --project-name=dynastyedge
 ```
-
-## Deployment
-
-Cloudflare Pages deployment:
-1. Build outputs to `frontend/out/`
-2. Deploy via Wrangler or Git integration
-3. Set `NEXT_PUBLIC_API_URL` environment variable
 
 ## Related Files
 - `frontend/app/` - All page components

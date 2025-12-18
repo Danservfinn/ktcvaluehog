@@ -1,11 +1,16 @@
 ---
+title: Data Jobs Infrastructure
+link: data-jobs-infrastructure
 type: code_index
+ontological_relations: []
 tags:
-  - data-pipeline
-  - automation
-  - neo4j
-  - nfl-data
-created: 2024-12-18
+- data-pipeline
+- automation
+- neo4j
+- nfl-data
+created_at: 2025-12-18T00:00:00Z
+updated_at: 2025-12-18T00:00:00Z
+uuid: d4e5f6a7-b8c9-0123-def4-567890123456
 ---
 
 # Data Jobs Infrastructure

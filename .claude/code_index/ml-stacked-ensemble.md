@@ -1,9 +1,21 @@
 ---
-type: code_index
 title: Stacked Ensemble ML Pipeline
-tags: [ml, ensemble, stacking, neural-network, lightgbm, huber-loss, feature-attention, model-registry, daily-retrain]
-created: 2025-01-17
-updated: 2025-12-18
+link: ml-stacked-ensemble
+type: code_index
+ontological_relations: []
+tags:
+- ml
+- ensemble
+- stacking
+- neural-network
+- lightgbm
+- huber-loss
+- feature-attention
+- model-registry
+- daily-retrain
+created_at: 2025-12-17T00:00:00Z
+updated_at: 2025-12-18T00:00:00Z
+uuid: f6a7b8c9-d0e1-2345-fa67-890123456789
 ---
 
 # Stacked Ensemble ML Pipeline

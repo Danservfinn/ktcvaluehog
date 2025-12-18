@@ -5,15 +5,15 @@ type: patterns
 ontological_relations: []
 tags:
 - deployment
+- vercel
 - railway
-- cloudflare
 - nextjs
 - fastapi
 - neo4j
 - supabase
 - infrastructure
 created_at: 2025-12-17T00:00:00Z
-updated_at: 2025-12-17T00:00:00Z
+updated_at: 2025-12-18T00:00:00Z
 uuid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ---
 
@@ -21,13 +21,13 @@ uuid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 
 ## Overview
 
-Dynasty Edge uses a modern JAMstack architecture with freemium monetization (~$5-15/month):
+Thoth uses a modern JAMstack architecture with freemium monetization (~$5-15/month):
 
 ```
 ┌─────────────────────────────┐     ┌───────────────────────────────┐
-│   Cloudflare Pages          │────▶│   Railway                      │
+│   Vercel                    │────▶│   Railway                      │
 │   (FREE - Next.js Frontend) │     │   FastAPI + Neo4j ($5-15/mo)  │
-│   dynastyedge.pages.dev     │     │   sparkling-commitment         │
+│   thoth.vercel.app          │     │   sparkling-commitment         │
 └─────────────────────────────┘     └───────────────────────────────┘
                                               │
                                               ▼
@@ -39,10 +39,11 @@ Dynasty Edge uses a modern JAMstack architecture with freemium monetization (~$5
 
 ## Components
 
-### Cloudflare Pages (Frontend)
-- **Framework**: Next.js
-- **Host**: dynastyedge.pages.dev
-- **Cost**: FREE (unlimited bandwidth)
+### Vercel (Frontend)
+- **Framework**: Next.js 14 with static export
+- **Host**: `https://frontend-jvxdlwhwi-dannys-projects-de68569e.vercel.app`
+- **Cost**: FREE (generous limits)
+- **Theme**: Light theme with warm cream/gold design
 - **UI Design**: Miller's Law (7±2 items per view)
 
 ### Railway (Backend + Database)
@@ -58,15 +59,15 @@ Dynasty Edge uses a modern JAMstack architecture with freemium monetization (~$5
 
 ### AI (BYOK - Bring Your Own Key)
 - Users provide their own Anthropic API key
-- Stored securely in Supabase user preferences
+- Stored securely in localStorage (never server-side)
 - No AI costs for platform operator
 
 ## Connection Details
 
 | Service | URL | Protocol |
 |---------|-----|----------|
-| Frontend | `https://dynastyedge.pages.dev` | HTTPS |
-| Backend API | `https://api.dynastyedge.com` (TBD) | HTTPS |
+| Frontend | `https://frontend-jvxdlwhwi-dannys-projects-de68569e.vercel.app` | HTTPS |
+| Backend API | `https://api.thoth.gg` (TBD) | HTTPS |
 | Neo4j HTTP | `https://sparkling-commitment-production.up.railway.app` | HTTPS |
 | Neo4j Browser | `https://sparkling-commitment-production.up.railway.app/browser/` | HTTPS |
 
@@ -95,7 +96,31 @@ All UI elements follow Miller's Law - humans can hold 7±2 items in working memo
 - **Search Results**: 7 items initially, paginate rest
 - **Forms**: Chunk into 5-7 field groups
 
-## Key Files
+## Frontend Deployment
+
+### Vercel Setup
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy from frontend directory
+cd frontend
+vercel
+
+# Or link to Git for automatic deploys
+vercel link
+```
+
+### Environment Variables (Vercel Dashboard)
+```
+NEXT_PUBLIC_API_URL=https://api.thoth.gg
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+```
+
+## Backend Deployment
+
+### Key Files
 
 | File | Purpose |
 |------|---------|
@@ -104,6 +129,20 @@ All UI elements follow Miller's Law - humans can hold 7±2 items in working memo
 | `deploy/DEPLOYMENT.md` | Step-by-step deployment guide |
 | `deploy/secrets.toml.example` | Streamlit secrets template |
 | `scripts/export_neo4j.py` | Database export to Cypher files |
+
+### Railway Commands
+```bash
+# Login and link
+railway login
+railway link -p sparkling-commitment
+
+# Deploy
+railway up --detach
+
+# Check status
+railway service status --all
+railway logs
+```
 
 ## Data Import
 
@@ -125,25 +164,10 @@ print(resp.json())
 
 | Service | Plan | Monthly Cost |
 |---------|------|--------------|
+| Vercel | Free | $0 |
 | Railway | Hobby | $5-10 |
-| Streamlit Cloud | Free | $0 |
+| Supabase | Free | $0 |
 | **Total** | | **~$5-10** |
-
-## Deployment Commands
-
-```bash
-# Export local database
-python scripts/export_neo4j.py
-
-# Deploy to Railway
-railway login
-railway link -p sparkling-commitment
-railway up --detach
-
-# Check status
-railway service status --all
-railway logs
-```
 
 ## Troubleshooting
 
@@ -160,3 +184,8 @@ railway logs
 - HTTP API is slower than Bolt (~100 nodes/sec)
 - Full 758K node import takes ~2 hours
 - Consider importing essential data first (Player, Team, Game)
+
+### Vercel Build Errors
+- Ensure `output: "export"` in next.config.mjs
+- Add Suspense boundaries around useSearchParams
+- Check for missing environment variables
