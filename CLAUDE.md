@@ -465,7 +465,7 @@ python scripts/train_optimized_models.py --no-stacking --no-attention
 #### Daily Retraining
 - GitHub Action: `.github/workflows/daily-retrain.yml`
 - Schedule: Daily at noon UTC (7am EST)
-- Threshold: R² >= 0.88 required for deployment
+- Threshold: R² >= 0.75 required for deployment (temporal evaluation)
 - Includes data freshness check to skip if models updated <20h ago
 - Auto-commits model updates and triggers Railway deploy
 
