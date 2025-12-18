@@ -183,7 +183,16 @@ const { user, isElite, isPro, loading, logout } = useAuth();
 ```
 
 ### Protected Pages
-Elite-gated pages use the auth context:
+Pages that use auth context for tier-based features:
+
+| Page | Auth Behavior |
+|------|---------------|
+| `/projections` | Full page gated - shows upgrade prompt if not Elite |
+| `/chat` | Full page gated - shows upgrade prompt if not Elite |
+| `/trade` | Partial gating - ML analysis section only for Elite |
+| `(dashboard)/layout.tsx` | Shows user info in sidebar, login/logout buttons |
+
+Example pattern:
 ```typescript
 function ProjectionsContent() {
   const { isElite, loading: authLoading } = useAuth();
@@ -216,6 +225,7 @@ When Supabase is configured (env vars set), the auth context:
 ### Elite Tier ($19.99/mo)
 - All rankings + rookies
 - ML projections
+- ML trade analysis (win probability, value projections)
 - Thoth AI (BYOK)
 - CSV export
 
