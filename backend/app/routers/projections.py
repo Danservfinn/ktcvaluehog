@@ -240,20 +240,26 @@ async def get_model_info():
             "meta_model": "RidgeCV Stacking (learned weights)",
             "loss_function": "Dynasty-Weighted Huber Loss (delta=5.0)"
         },
-        "r_squared": 0.91,  # Target with optimizations
-        "baseline_r_squared": 0.8759,
+        "r_squared": 0.80,  # Era-normalized training (1999-2023)
+        "rmse_ppg": 2.47,
+        "component_r2": {
+            "nn": 0.695,
+            "gbm": 0.803,
+            "rf": 0.765,
+            "ridge": 0.707
+        },
         "improvements": [
-            "+0.02 from stacking meta-model (vs fixed weights)",
-            "+0.015 from temporal momentum features (KTC trends)",
-            "+0.01 from Huber loss robustness",
-            "+0.01 from feature attention layer"
+            "Extended training data from 2016-2023 to 1999-2023",
+            "Era-normalized features (z-scores, percentiles) for cross-era consistency",
+            "Stacking meta-model with RidgeCV learned weights",
+            "Feature attention neural network for importance weighting"
         ],
         "training_data": {
-            "seasons": "2016-2024",
-            "split": "Time-based (pre-2022 train, 2022+ test)",
-            "samples": "~8,000 player-seasons"
+            "seasons": "1999-2023",
+            "split": "Time-based (pre-2023 train, 2023 test)",
+            "samples": "10,596 player-seasons (168 features)"
         },
-        "last_retrained": "2025-01-17",
+        "last_retrained": "2025-12-18",
         "retraining_schedule": "Weekly (Sundays)",
         "features": {
             "production": [
