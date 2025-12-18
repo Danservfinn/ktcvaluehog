@@ -67,6 +67,105 @@ export interface Projection {
   projection_rank?: number;
 }
 
+// Elite Trade Analysis Types
+export interface PlayerValueAnalysis {
+  current_value: number;
+  value_rank?: number;
+  value_30d_change?: number;
+  value_90d_change?: number;
+  value_trend?: 'rising' | 'stable' | 'falling';
+  projected_value_1yr?: number;
+  projected_value_2yr?: number;
+  projected_value_3yr?: number;
+}
+
+export interface PlayerProductionProfile {
+  season_ppg?: number;
+  last_4_ppg?: number;
+  ppg_trend?: string;
+  consistency_score?: number;
+  boom_rate?: number;
+  bust_rate?: number;
+  epa_per_touch?: number;
+  target_share?: number;
+  touch_share?: number;
+  red_zone_share?: number;
+  wopr?: number;
+  adot?: number;
+}
+
+export interface PlayerDynastyOutlook {
+  age?: number;
+  years_in_peak?: number;
+  peak_window?: string;
+  aging_curve_position?: 'Pre-Peak' | 'Peak' | 'Post-Peak' | 'Declining';
+  projected_ppg?: number;
+  projection_floor?: number;
+  projection_ceiling?: number;
+  projection_confidence?: number;
+  projected_pos_rank?: number;
+}
+
+export interface PlayerRiskAssessment {
+  injury_burden_score?: number;
+  injury_risk_level?: 'Low' | 'Medium' | 'High';
+  games_missed_3yr?: number;
+  key_injury_concerns?: string;
+  situation_score?: number;
+  qb_situation?: string;
+  team_stability?: string;
+  depth_chart_security?: 'Locked' | 'Secure' | 'At Risk';
+}
+
+export interface ElitePlayerAnalysis {
+  player_id: string;
+  name: string;
+  position: string;
+  team?: string;
+  age?: number;
+  value: PlayerValueAnalysis;
+  production: PlayerProductionProfile;
+  dynasty: PlayerDynastyOutlook;
+  risk: PlayerRiskAssessment;
+  overall_grade?: string;
+  one_liner?: string;
+}
+
+export interface EliteTradeSide {
+  players: ElitePlayerAnalysis[];
+  total_current_value: number;
+  total_projected_value_1yr?: number;
+  total_projected_value_3yr?: number;
+  average_age?: number;
+  composite_risk_score?: number;
+}
+
+export interface TradeScoreBreakdown {
+  current_value_edge: number;
+  projected_value_edge: number;
+  production_edge: number;
+  age_edge: number;
+  risk_edge: number;
+  total_edge: number;
+}
+
+export interface EliteTradeAnalysis {
+  verdict: 'WIN' | 'LOSE' | 'FAIR';
+  verdict_score: number;
+  confidence: number;
+  executive_summary: string;
+  best_for: 'Rebuild' | 'Contend' | 'Either';
+  risk_level: 'Low' | 'Medium' | 'High';
+  give_side: EliteTradeSide;
+  get_side: EliteTradeSide;
+  score_breakdown: TradeScoreBreakdown;
+  key_insights: string[];
+  recommendation_accept_if: string[];
+  recommendation_decline_if: string[];
+  suggested_additions?: string;
+  similar_trade_note?: string;
+}
+
 export interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
@@ -229,6 +328,22 @@ class ApiClient {
     return this.fetch('/api/v1/trades/analyze', {
       method: 'POST',
       body: JSON.stringify({ give, get }),
+    }, true);
+  }
+
+  async analyzeTradeElite(
+    give: string[],
+    get: string[],
+    options: { superflex?: boolean; tep?: boolean } = {}
+  ): Promise<ApiResponse<EliteTradeAnalysis>> {
+    return this.fetch('/api/v1/trades/analyze-elite', {
+      method: 'POST',
+      body: JSON.stringify({
+        give,
+        get,
+        superflex: options.superflex || false,
+        tep: options.tep || false,
+      }),
     }, true);
   }
 

@@ -99,11 +99,14 @@ frontend/
 │       ├── projections/page.tsx    # ML projections (Elite)
 │       ├── chat/page.tsx           # Thoth AI (Elite)
 │       └── settings/page.tsx       # Settings
-├── components/ui/                   # UI components
-│   ├── button.tsx                  # Button variants
-│   ├── card.tsx                    # Card variants
-│   ├── badge.tsx                   # Position + status badges
-│   └── input.tsx                   # Form inputs
+├── components/
+│   ├── ui/                         # UI components
+│   │   ├── button.tsx              # Button variants
+│   │   ├── card.tsx                # Card variants
+│   │   ├── badge.tsx               # Position + status badges
+│   │   └── input.tsx               # Form inputs
+│   └── trade/
+│       └── elite-trade-report.tsx  # Elite trade analysis report
 ├── contexts/
 │   └── auth-context.tsx            # Auth provider (admin bypass + Supabase)
 ├── lib/
@@ -245,8 +248,31 @@ npm run lint
 npx wrangler pages deploy out --project-name=dynastyedge
 ```
 
+## Elite Trade Report Component
+
+`components/trade/elite-trade-report.tsx` - Comprehensive trade analysis display:
+- Executive Summary with verdict badge (WIN/LOSE/FAIR)
+- Key Insights section
+- Side-by-side player comparison with:
+  - Value analysis (current, 1yr/2yr/3yr projections)
+  - Production profile (PPG, target share, efficiency metrics)
+  - Dynasty outlook (peak window, aging curve position)
+  - Risk assessment (injury burden, depth chart security)
+- Collapsible Score Breakdown section
+- Recommendations (Accept If / Decline If)
+- Dynasty Context with peak windows
+
+Usage:
+```typescript
+import { EliteTradeReport } from "@/components/trade/elite-trade-report";
+
+// After fetching elite analysis
+{eliteAnalysis && <EliteTradeReport analysis={eliteAnalysis} />}
+```
+
 ## Related Files
 - `frontend/app/` - All page components
 - `frontend/components/ui/` - Reusable UI components
+- `frontend/components/trade/` - Trade-specific components
 - `frontend/lib/` - Utilities and API client
 - `backend/app/routers/` - API endpoints consumed by frontend

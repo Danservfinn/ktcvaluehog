@@ -22,10 +22,12 @@ import {
   Sparkles,
   Loader2,
   Target,
+  FileText,
 } from "lucide-react";
 import Link from "next/link";
-import { api, PlayerSummary } from "@/lib/api";
+import { api, PlayerSummary, EliteTradeAnalysis } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { EliteTradeReport } from "@/components/trade/elite-trade-report";
 
 type Player = {
   id: string;
@@ -233,6 +235,9 @@ export default function TradePage() {
   const [givePlayers, setGivePlayers] = useState<Player[]>([]);
   const [getPlayers, setGetPlayers] = useState<Player[]>([]);
   const [analyzed, setAnalyzed] = useState(false);
+  const [eliteAnalysis, setEliteAnalysis] = useState<EliteTradeAnalysis | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const giveTotal = givePlayers.reduce((sum, p) => sum + p.value, 0);
   const getTotal = getPlayers.reduce((sum, p) => sum + p.value, 0);
@@ -241,9 +246,29 @@ export default function TradePage() {
 
   const allPlayerIds = [...givePlayers, ...getPlayers].map((p) => p.id);
 
-  const handleAnalyze = () => {
-    if (givePlayers.length > 0 && getPlayers.length > 0) {
-      setAnalyzed(true);
+  const handleAnalyze = async () => {
+    if (givePlayers.length === 0 || getPlayers.length === 0) return;
+
+    setAnalyzed(true);
+    setError(null);
+
+    // For Elite users, fetch the comprehensive analysis
+    if (isElite) {
+      setAnalyzing(true);
+      try {
+        const response = await api.analyzeTradeElite(
+          givePlayers.map((p) => p.id),
+          getPlayers.map((p) => p.id)
+        );
+        if (response.data) {
+          setEliteAnalysis(response.data);
+        }
+      } catch (err) {
+        console.error("Elite analysis failed:", err);
+        setError(err instanceof Error ? err.message : "Failed to analyze trade");
+      } finally {
+        setAnalyzing(false);
+      }
     }
   };
 
@@ -251,6 +276,8 @@ export default function TradePage() {
     setGivePlayers([]);
     setGetPlayers([]);
     setAnalyzed(false);
+    setEliteAnalysis(null);
+    setError(null);
   };
 
   return (
@@ -310,175 +337,186 @@ export default function TradePage() {
 
       {/* Results */}
       {analyzed && (
-        <Card
-          variant="elevated"
-          className={`border-2 ${
-            Math.abs(percentDiff) < 10
-              ? "border-sky-500/30"
-              : percentDiff > 0
-              ? "border-emerald-500/30"
-              : "border-rose-500/30"
-          }`}
-        >
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Trade Analysis
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-              <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">You Give</p>
-                <p className="text-xl font-bold font-mono">
-                  {giveTotal.toLocaleString()}
-                </p>
-              </div>
-              <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">You Get</p>
-                <p className="text-xl font-bold font-mono">
-                  {getTotal.toLocaleString()}
-                </p>
-              </div>
-              <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">Difference</p>
-                <p
-                  className={`text-xl font-bold font-mono ${
-                    difference >= 0 ? "text-emerald-600" : "text-rose-600"
-                  }`}
-                >
-                  {difference >= 0 ? "+" : ""}
-                  {difference.toLocaleString()}
-                </p>
-              </div>
-              <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">% Diff</p>
-                <p
-                  className={`text-xl font-bold ${
-                    percentDiff >= 0 ? "text-emerald-600" : "text-rose-600"
-                  }`}
-                >
-                  {percentDiff >= 0 ? "+" : ""}
-                  {percentDiff.toFixed(1)}%
-                </p>
-              </div>
-              <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-xs text-muted-foreground mb-1">Verdict</p>
-                <Badge
-                  variant={
-                    Math.abs(percentDiff) < 10
-                      ? "info"
-                      : percentDiff > 0
-                      ? "success"
-                      : "error"
-                  }
-                  className="text-sm"
-                >
-                  {Math.abs(percentDiff) < 10
-                    ? "Fair"
-                    : percentDiff > 0
-                    ? "Win"
-                    : "Lose"}
-                </Badge>
-              </div>
-            </div>
-
-            {/* Recommendation */}
-            <div className="p-4 bg-secondary/30 rounded-xl border border-border">
-              <div className="flex items-start gap-3">
-                <AlertCircle
-                  className={`h-5 w-5 mt-0.5 ${
-                    Math.abs(percentDiff) < 10
-                      ? "text-sky-600"
-                      : percentDiff > 0
-                      ? "text-emerald-600"
-                      : "text-amber-600"
-                  }`}
-                />
-                <div>
-                  <p className="font-medium">
-                    {Math.abs(percentDiff) < 10
-                      ? "This trade is relatively fair"
-                      : percentDiff > 0
-                      ? "This trade favors you"
-                      : "This trade favors the other side"}
-                  </p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {Math.abs(percentDiff) < 10
-                      ? "Value difference is within 10%, making this a balanced trade."
-                      : percentDiff > 0
-                      ? `You're getting ${percentDiff.toFixed(0)}% more value. Consider accepting.`
-                      : `You're giving up ${Math.abs(percentDiff).toFixed(0)}% more value. Try to get more back.`}
-                  </p>
+        <>
+          {/* Loading State for Elite Analysis */}
+          {isElite && analyzing && (
+            <Card variant="elevated" className="border-2 border-primary/20">
+              <CardContent className="py-12">
+                <div className="flex flex-col items-center justify-center gap-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  <div className="text-center">
+                    <p className="font-medium">Generating Elite Trade Report</p>
+                    <p className="text-sm text-muted-foreground">
+                      Analyzing player data, projections, and aging curves...
+                    </p>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
+          )}
 
-            {/* ML Analysis for Elite, Upgrade CTA for others */}
-            {isElite ? (
-              <Card variant="glass" className="border-purple-500/30">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-purple-500" />
-                    ML-Powered Analysis
-                    <Badge variant="elite" className="text-2xs">Elite</Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-3 bg-purple-500/10 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Projected Value Change (1yr)</p>
-                      <p className="text-lg font-bold text-purple-600">
-                        {difference >= 0 ? "+" : ""}{(difference * 0.15).toFixed(0)} pts
-                      </p>
-                      <p className="text-xs text-muted-foreground">Based on age curves & production trends</p>
-                    </div>
-                    <div className="p-3 bg-emerald-500/10 rounded-lg">
-                      <p className="text-xs text-muted-foreground mb-1">Win Probability</p>
-                      <p className="text-lg font-bold text-emerald-600">
-                        {Math.min(95, Math.max(5, 50 + percentDiff * 1.5)).toFixed(0)}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">ML model confidence</p>
-                    </div>
-                  </div>
-                  <div className="p-3 bg-secondary/50 rounded-lg">
-                    <p className="text-sm font-medium mb-2">Key Insights</p>
-                    <ul className="text-sm text-muted-foreground space-y-1">
-                      {givePlayers.map(p => (
-                        <li key={p.id}>• {p.name}: {p.pos === "RB" ? "Higher injury/age risk" : p.pos === "WR" ? "Stable long-term value" : "Position scarcity factor"}</li>
-                      )).slice(0, 2)}
-                      {getPlayers.map(p => (
-                        <li key={p.id}>• {p.name}: {p.pos === "QB" ? "Elite positional value" : "Trending " + (Math.random() > 0.5 ? "up" : "stable")}</li>
-                      )).slice(0, 2)}
-                    </ul>
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card variant="premium" className="glow-gold">
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <Sparkles className="h-5 w-5 text-amber-500" />
-                      <div>
-                        <p className="font-medium">
-                          Want ML-powered trade analysis?
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Get future projections and deeper insights.
-                        </p>
-                      </div>
-                    </div>
-                    <Button variant="premium" size="sm" asChild>
-                      <Link href="/pricing">Upgrade to Elite</Link>
+          {/* Error State */}
+          {error && (
+            <Card variant="elevated" className="border-2 border-rose-500/30">
+              <CardContent className="py-6">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-rose-500 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-rose-600">Analysis Failed</p>
+                    <p className="text-sm text-muted-foreground mt-1">{error}</p>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-3"
+                      onClick={handleAnalyze}
+                    >
+                      Retry Analysis
                     </Button>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </CardContent>
-        </Card>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Elite Trade Report */}
+          {isElite && eliteAnalysis && !analyzing && (
+            <EliteTradeReport analysis={eliteAnalysis} />
+          )}
+
+          {/* Basic Analysis for non-Elite users or while Elite is loading */}
+          {(!isElite || (!eliteAnalysis && !analyzing)) && !error && (
+            <Card
+              variant="elevated"
+              className={`border-2 ${
+                Math.abs(percentDiff) < 10
+                  ? "border-sky-500/30"
+                  : percentDiff > 0
+                  ? "border-emerald-500/30"
+                  : "border-rose-500/30"
+              }`}
+            >
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-primary" />
+                  Trade Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {/* Summary */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="text-center p-4 bg-secondary/50 rounded-xl">
+                    <p className="text-xs text-muted-foreground mb-1">You Give</p>
+                    <p className="text-xl font-bold font-mono">
+                      {giveTotal.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-secondary/50 rounded-xl">
+                    <p className="text-xs text-muted-foreground mb-1">You Get</p>
+                    <p className="text-xl font-bold font-mono">
+                      {getTotal.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-secondary/50 rounded-xl">
+                    <p className="text-xs text-muted-foreground mb-1">Difference</p>
+                    <p
+                      className={`text-xl font-bold font-mono ${
+                        difference >= 0 ? "text-emerald-600" : "text-rose-600"
+                      }`}
+                    >
+                      {difference >= 0 ? "+" : ""}
+                      {difference.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-secondary/50 rounded-xl">
+                    <p className="text-xs text-muted-foreground mb-1">% Diff</p>
+                    <p
+                      className={`text-xl font-bold ${
+                        percentDiff >= 0 ? "text-emerald-600" : "text-rose-600"
+                      }`}
+                    >
+                      {percentDiff >= 0 ? "+" : ""}
+                      {percentDiff.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div className="text-center p-4 bg-secondary/50 rounded-xl">
+                    <p className="text-xs text-muted-foreground mb-1">Verdict</p>
+                    <Badge
+                      variant={
+                        Math.abs(percentDiff) < 10
+                          ? "info"
+                          : percentDiff > 0
+                          ? "success"
+                          : "error"
+                      }
+                      className="text-sm"
+                    >
+                      {Math.abs(percentDiff) < 10
+                        ? "Fair"
+                        : percentDiff > 0
+                        ? "Win"
+                        : "Lose"}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Recommendation */}
+                <div className="p-4 bg-secondary/30 rounded-xl border border-border">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle
+                      className={`h-5 w-5 mt-0.5 ${
+                        Math.abs(percentDiff) < 10
+                          ? "text-sky-600"
+                          : percentDiff > 0
+                          ? "text-emerald-600"
+                          : "text-amber-600"
+                      }`}
+                    />
+                    <div>
+                      <p className="font-medium">
+                        {Math.abs(percentDiff) < 10
+                          ? "This trade is relatively fair"
+                          : percentDiff > 0
+                          ? "This trade favors you"
+                          : "This trade favors the other side"}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {Math.abs(percentDiff) < 10
+                          ? "Value difference is within 10%, making this a balanced trade."
+                          : percentDiff > 0
+                          ? `You're getting ${percentDiff.toFixed(0)}% more value. Consider accepting.`
+                          : `You're giving up ${Math.abs(percentDiff).toFixed(0)}% more value. Try to get more back.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Upgrade CTA for non-Elite */}
+                {!isElite && (
+                  <Card variant="premium" className="glow-gold">
+                    <CardContent className="p-4">
+                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <FileText className="h-5 w-5 text-amber-500" />
+                          <div>
+                            <p className="font-medium">
+                              Want a comprehensive trade report?
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Get ML projections, aging curves, risk analysis, and more.
+                            </p>
+                          </div>
+                        </div>
+                        <Button variant="premium" size="sm" asChild>
+                          <Link href="/pricing">Upgrade to Elite</Link>
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );

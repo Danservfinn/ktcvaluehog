@@ -9,7 +9,7 @@ tags:
 - backend
 - neo4j
 created_at: 2025-12-17T00:00:00Z
-updated_at: 2025-12-17T00:00:00Z
+updated_at: 2025-12-18T00:00:00Z
 uuid: c3d4e5f6-a7b8-9012-cdef-345678901234
 ---
 
@@ -59,7 +59,15 @@ backend/
 - `GET /api/v1/signals/production-leaders` - 2025 PPG leaders
 
 ### Trades
-- `POST /api/v1/trades/analyze` - Analyze trade proposal
+- `POST /api/v1/trades/analyze` - Basic trade proposal analysis
+- `POST /api/v1/trades/analyze-elite` - **Elite** comprehensive trade report with:
+  - Position-specific aging curves (QB: 26-34, RB: 22-26, WR: 24-29, TE: 25-30)
+  - 1yr/2yr/3yr value projections
+  - Production profiles (PPG, target share, EPA, WOPR)
+  - Dynasty outlook (peak windows, aging curve position)
+  - Risk assessment (injury burden, depth chart security)
+  - Weighted score breakdown (30% current, 25% projected, 25% age, 20% production)
+  - Key insights and recommendations
 - `GET /api/v1/trades/targets` - Find trade targets by position/budget
 
 ## Running Locally
@@ -118,6 +126,24 @@ class TradeAnalysis(BaseModel):
     recommendation: str  # ACCEPT, REJECT, FAIR
     confidence: float
     reasoning: str
+```
+
+### EliteTradeAnalysis (Elite Tier)
+```python
+class EliteTradeAnalysis(BaseModel):
+    verdict: str  # WIN, LOSE, FAIR
+    verdict_score: float  # -100 to +100
+    confidence: float  # 0-100
+    executive_summary: str  # 2-3 sentence narrative
+    best_for: str  # Rebuild, Contend, Either
+    risk_level: str  # Low, Medium, High
+    give_side: EliteTradeSide
+    get_side: EliteTradeSide
+    score_breakdown: TradeScoreBreakdown  # Weighted scoring
+    key_insights: list[str]  # 3-5 bullet points
+    recommendation_accept_if: list[str]
+    recommendation_decline_if: list[str]
+    suggested_additions: str | None  # "Ask for a 2nd to balance"
 ```
 
 ## Deployment
