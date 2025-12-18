@@ -269,7 +269,7 @@ GET  /api/v1/projections         # ML season projections
 GET  /api/v1/projections/positional/{pos}  # Position projections
 GET  /api/v1/projections/weekly  # Weekly projections
 GET  /api/v1/projections/compare # Compare player projections
-GET  /api/v1/projections/model-info  # Stacked ensemble details (R²=0.91)
+GET  /api/v1/projections/model-info  # Stacked ensemble details (R²=0.80)
 GET  /api/v1/projections/confidence/{id}  # Player confidence analysis
 
 # Chat (Elite only, BYOK)
@@ -377,24 +377,28 @@ tail -f logs/weekly_data_stdout.log
 #### Architecture
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                     Stacked Ensemble (R² = 0.91)                     │
+│         Stacked Ensemble (R² = 0.80, RMSE = 2.47 PPG)                │
 ├──────────────────────────────────────────────────────────────────────┤
 │  Meta-Model: RidgeCV (learned weights, cv=5)                         │
-│  ├── Feature Attention NN (Huber loss, delta=5.0)                   │
-│  ├── LightGBM Gradient Boosting (500 estimators)                    │
-│  ├── Random Forest (200 estimators, max_depth=8)                    │
-│  └── Ridge Regression (alpha=1.0)                                   │
+│  ├── Feature Attention NN (Huber loss, R²=0.695)                    │
+│  ├── LightGBM Gradient Boosting (800 est, R²=0.803)                 │
+│  ├── Random Forest (300 est, R²=0.765)                              │
+│  └── Ridge Regression (R²=0.707)                                    │
+├──────────────────────────────────────────────────────────────────────┤
+│  Training: 1999-2023 (10,596 samples, 168 features)                  │
+│  Test: 2023 season only (maximize training data)                     │
+│  Era-Normalized: Z-scores, percentiles for cross-era consistency     │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
 #### Key Optimizations
-| Optimization | Expected R² Gain | File |
-|-------------|------------------|------|
-| Stacking meta-model | +0.02-0.03 | `train_improved_models.py` |
-| Temporal momentum features | +0.01-0.02 | `expanded_dataset_builder.py` |
-| Huber loss + dynasty weighting | +0.01 | `neural_network_models.py` |
-| Feature attention layer | +0.01 | `neural_network_models.py` |
-| Position stratification | +0.01-0.02 | `train_improved_models.py` |
+| Optimization | Impact | File |
+|-------------|--------|------|
+| Era-normalized features | Cross-era training consistency | `expanded_dataset_builder.py` |
+| Extended training (1999-2023) | 10,596 samples vs 5,659 | `expanded_dataset_builder.py` |
+| LightGBM tuning | GBM R²=0.803 (best component) | `train_optimized_models.py` |
+| Stacking meta-model | Learned weights vs fixed | `train_optimized_models.py` |
+| Single test year (2023) | More training data | `train_optimized_models.py` |
 
 #### Extended Neo4j Features (80+ total)
 
@@ -482,35 +486,69 @@ python -m src.ml.model_registry --report
 
 #### Latest Training Results (2025-12-18)
 
-**Unified Railway Dataset (179 features, 5,659 samples):**
+**Era-Normalized Extended Dataset (1999-2023):**
 
-| Dataset | Features | R² Score | RMSE |
-|---------|----------|----------|------|
-| Base Dataset | 66 | 0.6126 | 3.55 PPG |
-| **Expanded (Railway)** | **157** | **0.9102** | **1.78 PPG** |
+| Metric | Value |
+|--------|-------|
+| Training Samples | 9,414 player-seasons |
+| Test Samples | 1,182 (2023 only) |
+| Features | 168 |
+| **Ensemble R²** | **0.801** |
+| **RMSE** | **2.47 PPG** |
+| MAE | 1.92 PPG |
 
-**Component Models:**
+**Component Model Performance:**
 | Component | R² Score |
 |-----------|----------|
-| GBM | 0.9102 |
-| Random Forest | 0.9060 |
-| Ridge | 0.7468 |
-| **Ensemble** | **0.8996** |
+| LightGBM | 0.803 |
+| Random Forest | 0.765 |
+| Ridge | 0.707 |
+| Neural Network | 0.695 |
+| **Stacked Ensemble** | **0.801** |
 
-**Data Sources Unified on Railway:**
-- 5,997 PlayByPlayAggregates (EPA, aDOT, WOPR)
-- 6,871 CombineResult (synced from local)
-- 6,636 DraftPick (synced from local)
-- Contract data + team tendencies from local files
+**Position-Specific R² (2023 test set):**
+| Position | R² | Samples |
+|----------|-----|---------|
+| QB | 0.59 | ~50 |
+| RB | 0.78 | ~300 |
+| WR | 0.77 | ~400 |
+| TE | 0.72 | ~150 |
+
+**Era-Normalized Features Added:**
+- `ppg_ppr_zscore`, `ppg_ppr_percentile` - Within-era PPG normalization
+- `targets_zscore`, `receptions_zscore` - Usage normalization
+- `snap_pct_zscore` - Opportunity normalization
+- `sample_weight` - Time decay (0.92^years_ago)
+- `yoy_ppg_change`, `yoy_targets_change` - Year-over-year deltas
 
 ### ML Pipeline Files
-- `src/ml/expanded_dataset_builder.py` - Training dataset construction with temporal features
+- `src/ml/expanded_dataset_builder.py` - Training dataset construction with era-normalized features
 - `src/ml/neural_network_models.py` - NN architectures (FFN, LSTM, Attention, MultiTask)
 - `src/ml/model_registry.py` - Model version tracking and management
 - `src/ml/predict.py` - Inference pipeline
-- `scripts/train_optimized_models.py` - Master training script
+- `scripts/train_optimized_models.py` - Master training script (stacked ensemble)
 - `scripts/train_improved_models.py` - Enhanced ensemble training
 - `scripts/train_neural_networks.py` - Neural network training
+- `scripts/update_neo4j_projections.py` - **NEW** Update Neo4j Player nodes with projections
+
+#### Update Neo4j Projections
+```bash
+# Preview projections without updating
+python scripts/update_neo4j_projections.py --dry-run
+
+# Update all players (379 with KTC values)
+python scripts/update_neo4j_projections.py
+
+# Update specific position only
+python scripts/update_neo4j_projections.py --position WR
+```
+
+Updates Player nodes with:
+- `projected_ppg` - Points per game projection
+- `projected_points` - Season total (17 games)
+- `projection_confidence` - Model confidence (0-1)
+- `projection_floor` / `projection_ceiling` - Range estimates
+- `projection_updated` - Timestamp
 
 ## Neo4j Node Types
 
