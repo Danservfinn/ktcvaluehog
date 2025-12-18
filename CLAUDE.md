@@ -28,7 +28,7 @@ Dynasty fantasy football analysis platform using Neo4j graph database, KTC valua
 ### Production URLs
 | Service | URL |
 |---------|-----|
-| Frontend | `https://dynastyedge.pages.dev` (TBD) |
+| Frontend (Vercel) | `https://frontend-jvxdlwhwi-dannys-projects-de68569e.vercel.app` |
 | Backend API | `https://api.dynastyedge.com` (TBD) |
 | Neo4j HTTP | `https://sparkling-commitment-production.up.railway.app` |
 | Neo4j Browser | `https://sparkling-commitment-production.up.railway.app/browser/` |
@@ -336,21 +336,52 @@ tail -f logs/weekly_data_stdout.log
 | Feature attention layer | +0.01 | `neural_network_models.py` |
 | Position stratification | +0.01-0.02 | `train_improved_models.py` |
 
-#### New Features Added
-- **KTC Momentum**: `ktc_7d_delta`, `ktc_30d_delta`, `ktc_trend_numeric`
-- **Injury Recency**: `injury_reports_this_season`, `severe_injury_count`
-- **Team Strength**: `team_avg_elo`, `team_ppg`, `team_off_rank`
+#### Extended Neo4j Features (80+ total)
+
+**Base Features (54)**: Season stats, snap counts, NGS, combine, draft capital
+
+**New Neo4j Features (December 2024)**:
+| Source Node | Features Added |
+|-------------|----------------|
+| PlayByPlayAggregates | `epa_per_target`, `epa_per_carry`, `adot`, `wopr`, `rz_td_rate`, `gl_td_rate` |
+| PlayerRoleProfile | `starter_rate`, `slot_rate`, `role_numeric`, `alignment_numeric` |
+| GameWeather | `dome_game_pct`, `cold_game_pct`, `weather_favorability` |
+| PlayerInjuryProfile | `injury_burden_score`, `overall_injury_risk_numeric` |
+| KTCTrend | `trend_slope`, `ktc_momentum`, `value_signal_numeric`, `dip_opportunity` |
+
+#### Connecting to Railway Neo4j
+
+```bash
+# Set environment variables for Railway Neo4j
+export NEO4J_URI="bolt://sparkling-commitment-production.up.railway.app:7687"
+export NEO4J_USER="neo4j"
+export NEO4J_PASSWORD="dynastyedge2025"
+
+# Or add to .env file
+echo 'NEO4J_URI=bolt://sparkling-commitment-production.up.railway.app:7687' >> .env
+echo 'NEO4J_USER=neo4j' >> .env
+echo 'NEO4J_PASSWORD=dynastyedge2025' >> .env
+```
+
+#### Build Expanded Dataset (80+ features)
+
+```bash
+# Build full dataset from Railway Neo4j
+python -m src.ml.expanded_dataset_builder
+
+# Output: data/ml_training/expanded_season_projection.parquet
+```
 
 #### Training Commands
 ```bash
-# Full optimized training
-python scripts/train_optimized_models.py
+# Full training with Neo4j (80+ features, requires connection)
+python scripts/train_optimized_models.py --compare-baseline
+
+# Training with base dataset only (54 features, no Neo4j needed)
+python scripts/train_optimized_models.py --use-base-dataset --compare-baseline
 
 # Train specific position
 python scripts/train_optimized_models.py --position QB
-
-# Compare with baseline
-python scripts/train_optimized_models.py --compare-baseline
 
 # Disable specific optimizations
 python scripts/train_optimized_models.py --no-stacking --no-attention
@@ -390,15 +421,27 @@ python -m src.ml.model_registry --report
 ```
 
 #### Latest Training Results (2025-12-18)
-| Component | R² Score | Meta Weight |
-|-----------|----------|-------------|
-| GBM | 0.8662 | 0.396 |
-| Random Forest | 0.8714 | 0.375 |
-| Ridge | 0.8572 | 0.222 |
-| Attention NN | 0.8420 | 0.012 |
-| **Ensemble** | **0.8713** | — |
 
-*With Neo4j temporal features + LightGBM: Target R² = 0.91*
+**Unified Railway Dataset (179 features, 5,659 samples):**
+
+| Dataset | Features | R² Score | RMSE |
+|---------|----------|----------|------|
+| Base Dataset | 66 | 0.6126 | 3.55 PPG |
+| **Expanded (Railway)** | **157** | **0.9102** | **1.78 PPG** |
+
+**Component Models:**
+| Component | R² Score |
+|-----------|----------|
+| GBM | 0.9102 |
+| Random Forest | 0.9060 |
+| Ridge | 0.7468 |
+| **Ensemble** | **0.8996** |
+
+**Data Sources Unified on Railway:**
+- 5,997 PlayByPlayAggregates (EPA, aDOT, WOPR)
+- 6,871 CombineResult (synced from local)
+- 6,636 DraftPick (synced from local)
+- Contract data + team tendencies from local files
 
 ### ML Pipeline Files
 - `src/ml/expanded_dataset_builder.py` - Training dataset construction with temporal features

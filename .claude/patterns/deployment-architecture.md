@@ -6,58 +6,94 @@ ontological_relations: []
 tags:
 - deployment
 - railway
-- streamlit
+- cloudflare
+- nextjs
+- fastapi
 - neo4j
+- supabase
 - infrastructure
 created_at: 2025-12-17T00:00:00Z
 updated_at: 2025-12-17T00:00:00Z
 uuid: a1b2c3d4-e5f6-7890-abcd-ef1234567890
 ---
 
-# Production Deployment Architecture
+# Production Deployment Architecture (v2)
 
 ## Overview
 
-Dynasty Edge uses a hybrid cloud architecture optimized for cost (~$5-10/month):
+Dynasty Edge uses a modern JAMstack architecture with freemium monetization (~$5-15/month):
 
 ```
-┌─────────────────────────┐     ┌────────────────────────────┐
-│   Streamlit Cloud       │────▶│   Railway (Neo4j)          │
-│   (Free - Dashboard)    │     │   ($5-10/mo - Database)    │
-│   share.streamlit.io    │     │   sparkling-commitment     │
-└─────────────────────────┘     └────────────────────────────┘
-         │                               │
-         │ HTTPS                         │ HTTP API
-         ▼                               ▼
-    [Users/Browser]               [758K Nodes]
-                                 [193K Relationships]
+┌─────────────────────────────┐     ┌───────────────────────────────┐
+│   Cloudflare Pages          │────▶│   Railway                      │
+│   (FREE - Next.js Frontend) │     │   FastAPI + Neo4j ($5-15/mo)  │
+│   dynastyedge.pages.dev     │     │   sparkling-commitment         │
+└─────────────────────────────┘     └───────────────────────────────┘
+                                              │
+                                              ▼
+                                    ┌───────────────────────┐
+                                    │   Supabase (FREE)     │
+                                    │   Auth + User DB      │
+                                    └───────────────────────┘
 ```
 
 ## Components
 
-### Railway Neo4j
-- **Project**: sparkling-commitment
-- **Image**: neo4j:5.15-community with socat proxy
-- **Memory**: 512MB page cache, 1GB heap
-- **Storage**: Persistent volume at /data
-- **Networking**: HTTP API exposed via Railway proxy (Bolt TCP not exposed)
+### Cloudflare Pages (Frontend)
+- **Framework**: Next.js
+- **Host**: dynastyedge.pages.dev
+- **Cost**: FREE (unlimited bandwidth)
+- **UI Design**: Miller's Law (7±2 items per view)
 
-### Streamlit Cloud
-- **Host**: share.streamlit.io
-- **Entry Point**: dashboard/app.py
-- **Secrets**: Configured via Streamlit Cloud settings
+### Railway (Backend + Database)
+- **API**: FastAPI with Neo4j integration
+- **Database**: Neo4j 5.15-community
+- **Project**: sparkling-commitment
+- **Cost**: $5-15/mo (Hobby plan)
+
+### Supabase (Auth)
+- **Features**: User auth, session management, user preferences
+- **Cost**: FREE tier
+- **Integration**: JWT tokens for API auth
+
+### AI (BYOK - Bring Your Own Key)
+- Users provide their own Anthropic API key
+- Stored securely in Supabase user preferences
+- No AI costs for platform operator
 
 ## Connection Details
 
 | Service | URL | Protocol |
 |---------|-----|----------|
+| Frontend | `https://dynastyedge.pages.dev` | HTTPS |
+| Backend API | `https://api.dynastyedge.com` (TBD) | HTTPS |
 | Neo4j HTTP | `https://sparkling-commitment-production.up.railway.app` | HTTPS |
 | Neo4j Browser | `https://sparkling-commitment-production.up.railway.app/browser/` | HTTPS |
-| Transaction API | `https://sparkling-commitment-production.up.railway.app/db/neo4j/tx/commit` | HTTPS |
 
-## Authentication
+## Neo4j Credentials
 - **Username**: `neo4j`
 - **Password**: `dynastyedge2025`
+
+## Freemium Tiers
+
+| Feature | Free | Pro ($9.99/mo) | Elite ($19.99/mo) |
+|---------|------|----------------|-------------------|
+| Player Search | All | All | All |
+| Rankings | Top 100 | Top 500 | All + Rookies |
+| Trade Analyzer | 3/day | Unlimited | Unlimited + ML |
+| ML Projections | - | - | Season + Weekly |
+| Thoth AI | - | - | Unlimited (BYOK) |
+| Data Export | - | - | CSV + API |
+
+## Miller's Law UI Design (7±2 Principle)
+
+All UI elements follow Miller's Law - humans can hold 7±2 items in working memory:
+
+- **Navigation**: 7 items max (Dashboard, Players, Rankings, Trade, Projections, Chat, Settings)
+- **Dashboard**: 5-7 widgets per view
+- **Tables**: 7 columns default, more in expandable section
+- **Search Results**: 7 items initially, paginate rest
+- **Forms**: Chunk into 5-7 field groups
 
 ## Key Files
 

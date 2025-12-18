@@ -60,6 +60,79 @@ python scripts/fetch_nfl_data.py
 python scripts/generate_daily_report.py
 ```
 
+## Weekly Data Jobs
+
+```bash
+# Run all weekly jobs (PBP, injuries, depth charts, KTC trends)
+python scripts/weekly_data_job.py
+
+# Run specific job only
+python scripts/weekly_data_job.py --job pbp_features
+python scripts/weekly_data_job.py --job injuries
+python scripts/weekly_data_job.py --job depth_charts
+python scripts/weekly_data_job.py --job ktc_trends
+
+# Preview what would run
+python scripts/weekly_data_job.py --dry-run
+
+# Check last run status
+python scripts/weekly_data_job.py --status
+
+# Force run even outside NFL season
+python scripts/weekly_data_job.py --force
+```
+
+## Play-by-Play Features
+
+```bash
+# Load historical data (multiple seasons)
+python scripts/ingest_pbp_features.py --years 2023 2024
+
+# Weekly update (current week only)
+python scripts/ingest_pbp_features.py --current-week
+
+# Test mode (no DB writes)
+python scripts/ingest_pbp_features.py --years 2024 --test
+
+# Force run (skip import lock check)
+python scripts/ingest_pbp_features.py --years 2024 --force
+```
+
+## Scheduler Management (macOS)
+
+```bash
+# Install schedulers
+./scripts/install_ktc_scheduler.sh       # KTC (6AM/6PM daily)
+./scripts/install_weekly_scheduler.sh    # Weekly data (Tue 4AM)
+
+# View all Thoth schedulers
+launchctl list | grep thoth
+
+# Run job manually
+launchctl start com.thoth.ktc-snapshot
+launchctl start com.thoth.weekly-data
+
+# Stop/unload scheduler
+launchctl unload ~/Library/LaunchAgents/com.thoth.weekly-data.plist
+
+# View logs
+tail -f logs/ktc_snapshot.log
+tail -f logs/weekly_data_stdout.log
+```
+
+## Import Lock (Railway Safety)
+
+```bash
+# Create lock (prevents data jobs during Railway import)
+touch data/.import_lock
+
+# Remove lock when import completes
+rm data/.import_lock
+
+# Check if locked
+ls data/.import_lock
+```
+
 ## Neo4j Commands
 
 ```bash

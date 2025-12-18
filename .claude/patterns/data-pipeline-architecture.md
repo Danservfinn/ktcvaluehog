@@ -21,8 +21,15 @@ Thoth is a modular dynasty fantasy platform with ML-powered valuations, a 14-too
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                    DATA COLLECTION (Twice Daily)                │
-│  GitHub Actions → KTC, Sleeper, NFLverse (combine, contracts)   │
+│                      DATA COLLECTION LAYER                       │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │ DAILY (6AM/6PM) │  │ WEEKLY (Tue 4AM)│  │ SEASONAL        │  │
+│  │ KTC Snapshots   │  │ PBP Features    │  │ College (Mar)   │  │
+│  │ launchd:ktc     │  │ Injuries        │  │ Contracts (Aug) │  │
+│  └─────────────────┘  │ Depth Charts    │  │ Defense (Feb)   │  │
+│                       │ KTC Trends      │  └─────────────────┘  │
+│                       └─────────────────┘                        │
+│  Infrastructure: scripts/data_jobs/ (BaseIngester, JobRunner)   │
 └───────────────────────────┬─────────────────────────────────────┘
                             ▼
 ┌─────────────────────────────────────────────────────────────────┐
@@ -82,3 +89,28 @@ Thoth is a modular dynasty fantasy platform with ML-powered valuations, a 14-too
 - 14 specialized tools in `src/agent/enhanced_tools.py`
 - Claude orchestrates tool selection
 - Each tool returns structured data for LLM interpretation
+
+### 5. Data Jobs Infrastructure (NEW)
+- **Base Ingester**: Abstract class with Neo4j patterns, logging, batch ops
+- **Job Runner**: Multi-job orchestration with status tracking
+- **Import Lock**: `data/.import_lock` prevents jobs during Railway sync
+- **Schedules**:
+  - Daily: KTC snapshots (6AM/6PM via launchd)
+  - Weekly: PBP, injuries, depth charts (Tue 4AM)
+  - Seasonal: College data (Mar), contracts (Aug)
+
+## Data Collection Commands
+
+```bash
+# Weekly data job
+python scripts/weekly_data_job.py              # Run all
+python scripts/weekly_data_job.py --dry-run    # Preview
+
+# PBP features
+python scripts/ingest_pbp_features.py --years 2024
+python scripts/ingest_pbp_features.py --current-week
+
+# Install schedulers
+./scripts/install_ktc_scheduler.sh
+./scripts/install_weekly_scheduler.sh
+```

@@ -10,6 +10,10 @@ Builds comprehensive ML training datasets by combining:
 4. Next Gen Stats / athletic metrics (24K records)
 5. Combine results (6.8K records)
 6. Draft capital
+7. Play-by-Play aggregates (EPA, aDOT, red zone usage)
+8. Player role profiles (starter rate, alignment)
+9. Injury profiles (burden score, risk level)
+10. KTC trends (momentum, volatility)
 
 This expands training data significantly and adds high-value features.
 """
@@ -23,7 +27,8 @@ from datetime import datetime
 
 import pandas as pd
 import numpy as np
-from neo4j import GraphDatabase
+import requests
+from requests.auth import HTTPBasicAuth
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -33,18 +38,119 @@ logger = logging.getLogger(__name__)
 
 
 class ExpandedDatasetBuilder:
-    """Builds expanded ML training datasets from all available data sources."""
+    """Builds expanded ML training datasets from all available data sources.
 
-    def __init__(self):
-        uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-        user = os.getenv("NEO4J_USER")
-        password = os.getenv("NEO4J_PASSWORD")
-        auth = (user, password) if user and password else None
-        self.driver = GraphDatabase.driver(uri, auth=auth)
+    Supports both Bolt (neo4j driver) and HTTP API connections to Neo4j.
+    HTTP API is used as fallback when Bolt times out (e.g., Railway deployments).
+    """
+
+    def __init__(self, use_http: bool = False):
+        """Initialize the dataset builder.
+
+        Args:
+            use_http: If True, use HTTP API instead of Bolt driver.
+                     Useful for Railway Neo4j where Bolt may timeout.
+                     Only applies if URI is for a remote server (Railway).
+        """
+        self.uri = os.getenv("NEO4J_URI", "bolt://localhost:7687")
+        self.user = os.getenv("NEO4J_USER", "neo4j")
+        self.password = os.getenv("NEO4J_PASSWORD", "")
+        self.driver = None
         self._player_name_cache = None
+        self.http_url = None
+        self.http_auth = None
+
+        # Check if this is a remote Railway URL
+        is_railway = "railway" in self.uri.lower()
+        is_localhost = "localhost" in self.uri.lower() or "127.0.0.1" in self.uri
+
+        # Only use HTTP for Railway (or remote) connections when requested
+        self.use_http = use_http and is_railway
+
+        if self.use_http:
+            # Convert bolt:// to https:// for Railway
+            http_host = self.uri.replace("bolt://", "").replace("neo4j://", "")
+            if ":" in http_host:
+                http_host = http_host.split(":")[0]
+            self.http_url = f"https://{http_host}/db/neo4j/tx/commit"
+            self.http_auth = HTTPBasicAuth(self.user, self.password)
+            logger.info(f"Using HTTP API: {self.http_url}")
+        else:
+            # Use Bolt driver (default for localhost or when HTTP not requested)
+            try:
+                from neo4j import GraphDatabase
+                auth = (self.user, self.password) if self.user and self.password else None
+                self.driver = GraphDatabase.driver(self.uri, auth=auth)
+                logger.info(f"Using Bolt driver: {self.uri}")
+            except Exception as e:
+                # Only fall back to HTTP if it's a Railway URI
+                if is_railway:
+                    logger.warning(f"Bolt driver failed, falling back to HTTP: {e}")
+                    self.use_http = True
+                    http_host = self.uri.replace("bolt://", "").replace("neo4j://", "")
+                    if ":" in http_host:
+                        http_host = http_host.split(":")[0]
+                    self.http_url = f"https://{http_host}/db/neo4j/tx/commit"
+                    self.http_auth = HTTPBasicAuth(self.user, self.password)
+                else:
+                    raise  # Re-raise for localhost - need to start Neo4j
+
+    def _run_query(self, query: str, parameters: dict = None) -> List[dict]:
+        """Run a Cypher query using either Bolt or HTTP API.
+
+        Returns:
+            List of record dictionaries.
+        """
+        if self.use_http:
+            return self._run_http_query(query, parameters)
+        else:
+            return self._run_bolt_query(query, parameters)
+
+    def _run_http_query(self, query: str, parameters: dict = None) -> List[dict]:
+        """Run a Cypher query via HTTP API."""
+        body = {"statements": [{"statement": query}]}
+        if parameters:
+            body["statements"][0]["parameters"] = parameters
+
+        try:
+            resp = requests.post(self.http_url, json=body, auth=self.http_auth, timeout=60)
+            data = resp.json()
+
+            if data.get('errors'):
+                logger.error(f"Query error: {data['errors']}")
+                return []
+
+            if not data.get('results') or not data['results'][0].get('data'):
+                return []
+
+            columns = data['results'][0]['columns']
+            return [dict(zip(columns, row['row'])) for row in data['results'][0]['data']]
+        except Exception as e:
+            logger.error(f"HTTP query failed: {e}")
+            return []
+
+    def _run_bolt_query(self, query: str, parameters: dict = None) -> List[dict]:
+        """Run a Cypher query via Bolt driver."""
+        try:
+            with self.driver.session() as session:
+                result = session.run(query, parameters or {})
+                return [dict(r) for r in result]
+        except Exception as e:
+            logger.error(f"Bolt query failed: {e}")
+            # Try HTTP fallback
+            logger.info("Falling back to HTTP API...")
+            self.use_http = True
+            http_host = self.uri.replace("bolt://", "").replace("neo4j://", "")
+            if ":" in http_host:
+                http_host = http_host.split(":")[0]
+            self.http_url = f"https://{http_host}/db/neo4j/tx/commit"
+            self.http_auth = HTTPBasicAuth(self.user, self.password)
+            return self._run_http_query(query, parameters)
 
     def close(self):
-        self.driver.close()
+        """Close the database connection."""
+        if self.driver:
+            self.driver.close()
 
     def _build_player_name_mapping(self) -> Dict[str, str]:
         """Build player_id -> full_name mapping using NGS data as primary source.
@@ -65,14 +171,13 @@ class ExpandedDatasetBuilder:
         RETURN pid, pname
         """
 
-        with self.driver.session() as session:
-            result = session.run(ngs_query)
-            mapping = {}
-            for r in result:
-                pid = r['pid']
-                pname = r['pname']
-                if pid and pname:
-                    mapping[pid] = pname
+        records = self._run_query(ngs_query)
+        mapping = {}
+        for r in records:
+            pid = r.get('pid')
+            pname = r.get('pname')
+            if pid and pname:
+                mapping[pid] = pname
 
         # For players not in NGS, fall back to SeasonStats (abbreviated names)
         # but only if we don't already have a name
@@ -83,15 +188,14 @@ class ExpandedDatasetBuilder:
         RETURN pid, pname
         """
 
-        with self.driver.session() as session:
-            result = session.run(fallback_query)
-            fallback_count = 0
-            for r in result:
-                pid = r['pid']
-                pname = r['pname']
-                if pid and pname and pid not in mapping:
-                    mapping[pid] = pname
-                    fallback_count += 1
+        fallback_records = self._run_query(fallback_query)
+        fallback_count = 0
+        for r in fallback_records:
+            pid = r.get('pid')
+            pname = r.get('pname')
+            if pid and pname and pid not in mapping:
+                mapping[pid] = pname
+                fallback_count += 1
 
         logger.info(f"  Built mapping for {len(mapping):,} players ({fallback_count} from SeasonStats fallback)")
         self._player_name_cache = mapping
@@ -110,13 +214,19 @@ class ExpandedDatasetBuilder:
         # Build name mapping first
         name_mapping = self._build_player_name_mapping()
 
+        # Use self-join instead of NEXT_SEASON relationship for Railway compatibility
         query = """
-        MATCH (curr:HistoricalSeasonStats)-[:NEXT_SEASON]->(next:HistoricalSeasonStats)
+        MATCH (curr:HistoricalSeasonStats)
         WHERE curr.position IN $positions
           AND curr.games >= $min_games
-          AND next.games >= $min_games
           AND curr.season >= $start_year
           AND curr.season <= $end_year
+
+        // Find next season for same player (self-join)
+        MATCH (next:HistoricalSeasonStats)
+        WHERE next.player_id = curr.player_id
+          AND next.season = curr.season + 1
+          AND next.games >= $min_games
 
         // Get career history
         OPTIONAL MATCH (prev:HistoricalSeasonStats)
@@ -167,19 +277,18 @@ class ExpandedDatasetBuilder:
                // Target
                next.ppg_ppr as next_ppg_ppr,
                next.ppg_std as next_ppg_std,
-               next.games as next_games
+               next.games as next_games,
+               next.season as next_season
 
         ORDER BY curr.season, curr.ppg_ppr DESC
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {
-                'positions': positions,
-                'min_games': min_games,
-                'start_year': start_year,
-                'end_year': end_year
-            })
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {
+            'positions': positions,
+            'min_games': min_games,
+            'start_year': start_year,
+            'end_year': end_year
+        })
 
         df = pd.DataFrame(records)
 
@@ -237,9 +346,7 @@ class ExpandedDatasetBuilder:
                max_snap_pct, high_snap_weeks, weeks_played
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_names': player_names, 'seasons': seasons})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_names': player_names, 'seasons': seasons})
 
         if records:
             snap_df = pd.DataFrame(records)
@@ -291,9 +398,7 @@ class ExpandedDatasetBuilder:
         player_ids = df['player_id'].dropna().unique().tolist()
         seasons = df['season'].dropna().unique().tolist()
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_ids': player_ids, 'seasons': seasons})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_ids': player_ids, 'seasons': seasons})
 
         if not records:
             logger.warning("  No NGS data found")
@@ -401,12 +506,17 @@ class ExpandedDatasetBuilder:
                c.weight as weight
         """
 
-        with self.driver.session() as session:
-            result = session.run(query)
-            records = [dict(r) for r in result]
+        records = self._run_query(query)
 
         if records:
             combine_df = pd.DataFrame(records)
+
+            # Convert numeric columns (HTTP API returns strings)
+            numeric_cols = ['forty_yard', 'vertical_jump', 'broad_jump', 'bench_press',
+                           'shuttle', 'three_cone', 'weight']
+            for col in numeric_cols:
+                if col in combine_df.columns:
+                    combine_df[col] = pd.to_numeric(combine_df[col], errors='coerce')
 
             # Convert height to inches
             def height_to_inches(h):
@@ -508,9 +618,7 @@ class ExpandedDatasetBuilder:
         player_ids = df['player_id'].dropna().unique().tolist()
         seasons = df['season'].dropna().unique().tolist()
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_ids': player_ids, 'seasons': seasons})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_ids': player_ids, 'seasons': seasons})
 
         if records:
             weekly_df = pd.DataFrame(records)
@@ -537,9 +645,7 @@ class ExpandedDatasetBuilder:
                d.team as draft_team
         """
 
-        with self.driver.session() as session:
-            result = session.run(query)
-            records = [dict(r) for r in result]
+        records = self._run_query(query)
 
         if records:
             draft_df = pd.DataFrame(records)
@@ -619,9 +725,7 @@ class ExpandedDatasetBuilder:
                size(snapshots) as ktc_data_points
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_names': player_names})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_names': player_names})
 
         if records:
             ktc_df = pd.DataFrame(records)
@@ -693,9 +797,7 @@ class ExpandedDatasetBuilder:
                size([r IN reports WHERE r.body_part CONTAINS 'hamstring' OR r.body_part CONTAINS 'Hamstring']) as soft_tissue_count
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_ids': player_ids, 'seasons': seasons})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_ids': player_ids, 'seasons': seasons})
 
         if records:
             injury_df = pd.DataFrame(records)
@@ -780,9 +882,7 @@ class ExpandedDatasetBuilder:
                team_ppg - team_ppg_allowed as team_point_diff
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'teams': teams, 'seasons': seasons})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'teams': teams, 'seasons': seasons})
 
         if records:
             team_df = pd.DataFrame(records)
@@ -838,12 +938,12 @@ class ExpandedDatasetBuilder:
             logger.warning("  No player IDs for PBP lookup")
             return df
 
-        # Get season totals (week=0) from PlayByPlayAggregates
+        # Get season-level aggregates from PlayByPlayAggregates
+        # Note: Data is already at season level (no week field)
         query = """
         MATCH (p:PlayByPlayAggregates)
         WHERE p.player_id IN $player_ids
           AND p.season IN $seasons
-          AND p.week = 0  // Season totals only
         RETURN p.player_id as player_id,
                p.season as season,
                p.stat_type as stat_type,
@@ -873,9 +973,7 @@ class ExpandedDatasetBuilder:
                p.neutral_script_carries as neutral_script_carries
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_ids': player_ids, 'seasons': seasons})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_ids': player_ids, 'seasons': seasons})
 
         if records:
             pbp_df = pd.DataFrame(records)
@@ -965,9 +1063,7 @@ class ExpandedDatasetBuilder:
                r.primary_role as primary_role
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_ids': player_ids})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_ids': player_ids})
 
         if records:
             role_df = pd.DataFrame(records)
@@ -1067,9 +1163,7 @@ class ExpandedDatasetBuilder:
                avg_temp, avg_wind
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'teams': teams, 'seasons': seasons})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'teams': teams, 'seasons': seasons})
 
         if records:
             weather_df = pd.DataFrame(records)
@@ -1148,9 +1242,7 @@ class ExpandedDatasetBuilder:
                ip.overall_injury_risk as overall_injury_risk
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_ids': player_ids})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_ids': player_ids})
 
         if records:
             profile_df = pd.DataFrame(records)
@@ -1254,9 +1346,7 @@ class ExpandedDatasetBuilder:
                kt.days_tracked as ktc_days_tracked
         """
 
-        with self.driver.session() as session:
-            result = session.run(query, {'player_names': player_names})
-            records = [dict(r) for r in result]
+        records = self._run_query(query, {'player_names': player_names})
 
         if records:
             trend_df = pd.DataFrame(records)
@@ -1297,6 +1387,162 @@ class ExpandedDatasetBuilder:
                        'ktc_momentum', 'days_since_peak', 'pct_off_peak',
                        'value_signal_numeric', 'dip_opportunity']:
                 df[col] = np.nan
+
+        return df
+
+    # =========================================================================
+    # LOCAL FILE FEATURES (CONTRACT DATA, TEAM TENDENCIES)
+    # =========================================================================
+
+    def add_enhanced_features_from_file(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add enhanced features from local CSV file.
+
+        Includes:
+        - Contract data: contract_apy, contract_total, guaranteed_pct, cap_pct, apy_percentile
+        - Athletic scores: athletic_score, athletic_pct
+        - Draft value metrics: draft_value (refined)
+        - Injury risk score
+        - Snap metrics (if not already present)
+
+        Expected R² gain: +0.01-0.02
+        """
+        logger.info("Adding enhanced features from local file...")
+
+        enhanced_path = Path('data/training/enhanced_features.csv')
+        if not enhanced_path.exists():
+            logger.warning(f"  Enhanced features file not found: {enhanced_path}")
+            return df
+
+        try:
+            enhanced_df = pd.read_csv(enhanced_path)
+            logger.info(f"  Loaded {len(enhanced_df):,} rows from enhanced_features.csv")
+
+            # Select key features to merge (avoid duplicates with Neo4j data)
+            merge_cols = ['name']  # Join key
+
+            # Contract features (unique to this file)
+            contract_cols = ['contract_apy', 'contract_total', 'contract_guaranteed',
+                           'guaranteed_pct', 'cap_pct', 'apy_percentile']
+            for col in contract_cols:
+                if col in enhanced_df.columns:
+                    merge_cols.append(col)
+
+            # Draft value (refined version)
+            if 'draft_value' in enhanced_df.columns:
+                enhanced_df = enhanced_df.rename(columns={'draft_value': 'enhanced_draft_value'})
+                merge_cols.append('enhanced_draft_value')
+
+            # Injury risk (pre-computed)
+            if 'injury_risk' in enhanced_df.columns:
+                enhanced_df = enhanced_df.rename(columns={'injury_risk': 'enhanced_injury_risk'})
+                merge_cols.append('enhanced_injury_risk')
+
+            # Athletic percentile
+            if 'athletic_pct' in enhanced_df.columns:
+                merge_cols.append('athletic_pct')
+
+            # Years remaining on contract
+            if 'years_remaining' in enhanced_df.columns:
+                merge_cols.append('years_remaining')
+
+            # Age (more accurate than estimated)
+            if 'age' in enhanced_df.columns:
+                enhanced_df = enhanced_df.rename(columns={'age': 'actual_age'})
+                merge_cols.append('actual_age')
+
+            # Years experience
+            if 'years_exp' in enhanced_df.columns:
+                merge_cols.append('years_exp')
+
+            # aDOT from enhanced file (if not present from PBP)
+            if 'adot' in enhanced_df.columns and 'adot' not in df.columns:
+                enhanced_df = enhanced_df.rename(columns={'adot': 'enhanced_adot'})
+                merge_cols.append('enhanced_adot')
+
+            # Merge by player name
+            df = df.merge(
+                enhanced_df[merge_cols],
+                left_on='player_name',
+                right_on='name',
+                how='left'
+            )
+            df.drop(columns=['name'], errors='ignore', inplace=True)
+
+            # Fill contract-related NaNs with league minimums
+            if 'contract_apy' in df.columns:
+                df['contract_apy'] = df['contract_apy'].fillna(0.8)  # ~league minimum
+            if 'apy_percentile' in df.columns:
+                df['apy_percentile'] = df['apy_percentile'].fillna(10)  # Low percentile
+            if 'guaranteed_pct' in df.columns:
+                df['guaranteed_pct'] = df['guaranteed_pct'].fillna(0)
+
+            matched = df['contract_apy'].notna().sum() if 'contract_apy' in df.columns else 0
+            logger.info(f"  Matched enhanced features for {matched:,} players")
+
+        except Exception as e:
+            logger.error(f"  Error loading enhanced features: {e}")
+
+        return df
+
+    def add_graph_features_from_file(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Add team tendency features from local parquet file.
+
+        Includes:
+        - team_pass_rate: Team's pass play percentage
+        - team_plays_per_game: Team's offensive tempo
+        - team_pass_epa: Team's passing efficiency (EPA)
+        - team_pa_rate: Team's pass attempt rate
+        - team_rz_pass_rate: Team's red zone pass tendency
+
+        Expected R² gain: +0.01
+        """
+        logger.info("Adding graph features from local file...")
+
+        graph_path = Path('data/features/graph_features.parquet')
+        if not graph_path.exists():
+            logger.warning(f"  Graph features file not found: {graph_path}")
+            return df
+
+        try:
+            graph_df = pd.read_parquet(graph_path)
+            logger.info(f"  Loaded {len(graph_df):,} rows from graph_features.parquet")
+
+            # Select team tendency columns
+            team_cols = ['player_name']
+            tendency_cols = ['team_pass_rate', 'team_plays_per_game', 'team_pass_epa',
+                           'team_pa_rate', 'team_rz_pass_rate']
+
+            for col in tendency_cols:
+                if col in graph_df.columns:
+                    team_cols.append(col)
+
+            if len(team_cols) > 1:
+                # Merge by player name
+                df = df.merge(
+                    graph_df[team_cols],
+                    on='player_name',
+                    how='left'
+                )
+
+                # Fill NaN with league averages
+                if 'team_pass_rate' in df.columns:
+                    df['team_pass_rate'] = df['team_pass_rate'].fillna(0.55)  # ~55% pass rate
+                if 'team_plays_per_game' in df.columns:
+                    df['team_plays_per_game'] = df['team_plays_per_game'].fillna(63)  # ~63 plays/game
+                if 'team_pass_epa' in df.columns:
+                    df['team_pass_epa'] = df['team_pass_epa'].fillna(0)  # Neutral
+                if 'team_rz_pass_rate' in df.columns:
+                    df['team_rz_pass_rate'] = df['team_rz_pass_rate'].fillna(0.5)
+
+                matched = df['team_pass_rate'].notna().sum() if 'team_pass_rate' in df.columns else 0
+                logger.info(f"  Matched graph features for {matched:,} players")
+            else:
+                logger.warning("  No team tendency columns found in graph features")
+
+        except Exception as e:
+            logger.error(f"  Error loading graph features: {e}")
 
         return df
 
@@ -1427,7 +1673,13 @@ class ExpandedDatasetBuilder:
         # Step 14: Add KTC trend features (momentum, volatility, signals)
         df = self.add_ktc_trend_features(df)
 
-        # Step 15: Engineer features
+        # Step 15: Add enhanced features from local file (contract data, athletic pct)
+        df = self.add_enhanced_features_from_file(df)
+
+        # Step 16: Add graph features from local file (team tendencies)
+        df = self.add_graph_features_from_file(df)
+
+        # Step 17: Engineer features
         df = self.engineer_features(df)
 
         logger.info("="*60)
@@ -1439,7 +1691,13 @@ class ExpandedDatasetBuilder:
 
 def main():
     """Build and export expanded dataset."""
-    builder = ExpandedDatasetBuilder()
+    import argparse
+    parser = argparse.ArgumentParser(description='Build expanded ML training dataset')
+    parser.add_argument('--use-http', action='store_true',
+                       help='Use HTTP API instead of Bolt driver (for Railway)')
+    args = parser.parse_args()
+
+    builder = ExpandedDatasetBuilder(use_http=args.use_http)
 
     try:
         # Build dataset
@@ -1479,13 +1737,22 @@ def main():
             'boom_rate', 'draft_capital', 'athletic_score',
             'ktc_30d_delta', 'ktc_trend_numeric', 'team_avg_elo',
             'injury_reports_this_season', 'team_off_rank',
-            # New features (December 2024)
-            'epa_per_target', 'epa_per_carry', 'adot', 'wopr',  # PBP
-            'total_rz_opps', 'rz_td_rate', 'gl_td_rate',  # Red zone
-            'starter_rate', 'slot_rate', 'role_numeric',  # Depth chart
-            'dome_game_pct', 'weather_favorability',  # Weather
-            'injury_burden_score', 'overall_injury_risk_numeric',  # Injury profile
-            'current_ktc_value', 'trend_slope', 'value_signal_numeric',  # KTC trend
+            # PBP features
+            'epa_per_target', 'epa_per_carry', 'adot', 'wopr',
+            'total_rz_opps', 'rz_td_rate', 'gl_td_rate',
+            # Depth chart
+            'starter_rate', 'slot_rate', 'role_numeric',
+            # Weather
+            'dome_game_pct', 'weather_favorability',
+            # Injury profile
+            'injury_burden_score', 'overall_injury_risk_numeric',
+            # KTC trend
+            'current_ktc_value', 'trend_slope', 'value_signal_numeric',
+            # Enhanced features (local file)
+            'contract_apy', 'apy_percentile', 'guaranteed_pct',
+            'athletic_pct', 'years_remaining', 'actual_age', 'years_exp',
+            # Graph features (local file)
+            'team_pass_rate', 'team_plays_per_game', 'team_pass_epa', 'team_rz_pass_rate',
         ]
         for feat in key_features:
             if feat in df.columns:
