@@ -103,13 +103,13 @@ export default function DashboardPage() {
     avgChange: "+4.2%",
     buySignals: 12,
     sellSignals: 8,
-    r2Score: "0.91",
+    r2Score: "0.80",
   });
 
   // Recent news - static for now since no news API endpoint
   const recentNews: NewsItem[] = [
     { headline: "Live data connected to Railway Neo4j database", time: "Now" },
-    { headline: "ML model achieving R² = 0.91 on expanded features", time: "Recent" },
+    { headline: "ML model achieving R² = 0.80 (temporal evaluation)", time: "Recent" },
     { headline: "KTC values updated from Keep Trade Cut", time: "Today" },
     { headline: "157 features available for ML predictions", time: "Today" },
     { headline: "Dashboard now loads real player data", time: "Today" },
@@ -163,7 +163,7 @@ export default function DashboardPage() {
           avgChange: "+4.2%",
           buySignals: buyResponse.total || 12,
           sellSignals: sellResponse.total || 8,
-          r2Score: "0.91",
+          r2Score: "0.80",
         });
       } catch (error) {
         console.error("Failed to fetch dashboard data:", error);
