@@ -39,22 +39,24 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [forceLogout, setForceLogout] = useState(false);
+  const [logoutComplete, setLogoutComplete] = useState(false);
 
-  // Check for ?logout query param to force clear session
+  // Check if we need to force logout (query param present)
+  const shouldLogout = searchParams.get("logout") === "true";
+
+  // Handle force logout
   useEffect(() => {
-    if (searchParams.get("logout") === "true") {
-      setForceLogout(true);
+    if (shouldLogout && !logoutComplete) {
       logout().then(() => {
         // Clear the URL param without reload
         window.history.replaceState({}, "", "/login");
-        setForceLogout(false);
+        setLogoutComplete(true);
       });
     }
-  }, [searchParams, logout]);
+  }, [shouldLogout, logoutComplete, logout]);
 
-  // Show loading while auth is initializing or during force logout
-  if (authLoading || forceLogout) {
+  // Show loading while auth is initializing OR while we're doing forced logout
+  if (authLoading || (shouldLogout && !logoutComplete)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -62,8 +64,8 @@ function LoginForm() {
     );
   }
 
-  // If already logged in (and not force logout), redirect
-  if (user) {
+  // If already logged in (and not trying to logout), redirect
+  if (user && !shouldLogout) {
     if (typeof window !== "undefined") {
       window.location.href = "/";
     }
