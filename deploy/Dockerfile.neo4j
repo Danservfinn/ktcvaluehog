@@ -1,0 +1,45 @@
+# Neo4j Docker Image for Railway Deployment
+# Optimized for ~750K nodes, 200K relationships
+# Target: 2-4 GB RAM on Railway Hobby plan
+
+FROM neo4j:5.15-community
+
+# Environment variables for memory optimization
+# Railway Hobby: max 8GB RAM, targeting 2-4GB usage
+ENV NEO4J_AUTH=neo4j/dynastyedge2025
+ENV NEO4J_PLUGINS=["apoc"]
+ENV NEO4J_server_memory_pagecache_size=512m
+ENV NEO4J_server_memory_heap_initial__size=1g
+ENV NEO4J_server_memory_heap_max__size=2g
+ENV NEO4J_server_jvm_additional=-XX:+UseG1GC
+
+# Enable Bolt and HTTP connectors
+ENV NEO4J_server_bolt_enabled=true
+ENV NEO4J_server_bolt_listen__address=0.0.0.0:7687
+ENV NEO4J_server_http_enabled=true
+ENV NEO4J_server_http_listen__address=0.0.0.0:7474
+
+# Allow connections from any host (Railway networking)
+ENV NEO4J_server_default__listen__address=0.0.0.0
+ENV NEO4J_server_bolt_advertised__address=:7687
+ENV NEO4J_server_http_advertised__address=:7474
+
+# APOC configuration
+ENV NEO4J_dbms_security_procedures_unrestricted=apoc.*
+ENV NEO4J_dbms_security_procedures_allowlist=apoc.*
+
+# Create import directory for data loading
+RUN mkdir -p /var/lib/neo4j/import
+
+# Volume for persistent data
+VOLUME ["/data"]
+
+# Expose ports
+EXPOSE 7474 7687
+
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD wget -q --spider http://localhost:7474 || exit 1
+
+# Start Neo4j
+CMD ["neo4j"]

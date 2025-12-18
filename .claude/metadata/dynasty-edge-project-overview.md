@@ -50,10 +50,25 @@ Maximize KTC (KeepTradeCut) roster value using graph intelligence, ML-powered va
 | `thoth_agent.py` | CLI agent with 14 tools |
 | `src/agent/enhanced_tools.py` | Tool implementations |
 
+## Production Deployment
+
+```
+Streamlit Cloud (Free) ──────▶ Railway Neo4j ($5-10/mo)
+share.streamlit.io            sparkling-commitment
+```
+
+| Service | URL |
+|---------|-----|
+| Neo4j HTTP | `https://sparkling-commitment-production.up.railway.app` |
+| Neo4j Credentials | `neo4j` / `dynastyedge2025` |
+
+See `deploy/DEPLOYMENT.md` for full setup guide.
+
 ## Data Sources
 - **KTC**: KeepTradeCut crowdsourced values
 - **Sleeper**: League rosters, standings, picks
 - **NFLverse**: Stats, combine, contracts, injuries, snaps
+- **Betting**: Spreads, O/U, Elo ratings (36,957 games, 1920-2025)
 
 ## ML Model
 - **Algorithm**: Gradient Boosting (40 features)
