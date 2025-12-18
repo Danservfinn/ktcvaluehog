@@ -336,6 +336,7 @@ class ApiClient {
     get: string[],
     options: { superflex?: boolean; tep?: boolean } = {}
   ): Promise<ApiResponse<EliteTradeAnalysis>> {
+    // Note: Auth check is done on frontend (isElite), backend is open
     return this.fetch('/api/v1/trades/analyze-elite', {
       method: 'POST',
       body: JSON.stringify({
@@ -344,7 +345,7 @@ class ApiClient {
         superflex: options.superflex || false,
         tep: options.tep || false,
       }),
-    }, true);
+    });
   }
 
   async findTradeTargets(position: string, budgetKtc: number, signal = 'BUY'): Promise<ApiResponse<Player[]>> {
