@@ -466,10 +466,10 @@ def _build_elite_player_analysis(player: dict) -> ElitePlayerAnalysis:
 
     # Dynasty outlook
     dynasty = PlayerDynastyOutlook(
-        age=age,
-        years_in_peak=_calculate_years_in_peak(age, pos),
+        age=int(age),
+        years_in_peak=int(_calculate_years_in_peak(int(age), pos)),
         peak_window=_get_peak_window(pos),
-        aging_curve_position=_get_aging_curve_position(age, pos),
+        aging_curve_position=_get_aging_curve_position(int(age), pos),
         projected_ppg=player.get("proj_ppg"),
         projection_floor=player.get("proj_floor"),
         projection_ceiling=player.get("proj_ceiling"),
@@ -497,12 +497,12 @@ def _build_elite_player_analysis(player: dict) -> ElitePlayerAnalysis:
         name=player.get("name") or "",
         position=pos,
         team=player.get("team"),
-        age=age,
+        age=int(age),
         value=value,
         production=production,
         dynasty=dynasty,
         risk=risk,
-        overall_grade=_get_grade(ktc, season_ppg, age, pos),
+        overall_grade=_get_grade(ktc, season_ppg, int(age), pos),
         one_liner=_generate_one_liner(player, pos),
     )
 
