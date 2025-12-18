@@ -22,13 +22,15 @@ uuid: f6a7b8c9-d0e1-2345-fa67-890123456789
 
 ## Overview
 
-Dynasty Edge uses a stacked ensemble for fantasy production prediction, achieving R² = 0.91 (improved from baseline 0.8759). The architecture uses learned meta-model weights instead of fixed averaging for optimal base model combination.
+Dynasty Edge uses a stacked ensemble for fantasy production prediction, achieving **R² = 0.80** with proper temporal evaluation (testing on 2023 data after training on 1999-2022). The architecture uses learned meta-model weights instead of fixed averaging for optimal base model combination.
+
+**IMPORTANT**: Previous claims of R² = 0.91 were from random train/test splits, which cause data leakage in time-series prediction. The true temporal R² is 0.80, which is the realistic metric for actual future predictions.
 
 ## Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────────────┐
-│                     Stacked Ensemble (R² = 0.91)                     │
+│                     Stacked Ensemble (R² = 0.80)                     │
 ├──────────────────────────────────────────────────────────────────────┤
 │                                                                       │
 │  Input Features (80+)                                                │
@@ -242,46 +244,49 @@ Training uses temporal split to prevent data leakage:
 
 ## Performance Comparison
 
+**Temporal Split (2023 test - correct methodology):**
+
 | Model | R² Score | RMSE (PPG) |
 |-------|----------|------------|
-| Ridge Only | 0.72 | 3.1 |
-| Random Forest Only | 0.78 | 2.8 |
-| LightGBM Only | 0.82 | 2.5 |
-| Neural Network Only | 0.80 | 2.6 |
-| Fixed-Weight Ensemble | 0.8759 | 2.3 |
-| **Stacked Ensemble** | **0.91** | **2.1** |
+| Ridge Only | 0.707 | 2.99 |
+| Random Forest Only | 0.765 | 2.68 |
+| LightGBM Only | 0.803 | 2.45 |
+| Neural Network Only | 0.695 | 3.05 |
+| **Stacked Ensemble** | **0.801** | **2.47** |
+
+**Note**: Previous table showed R² = 0.91 from random splits (data leakage). Temporal evaluation is required for time-series prediction.
 
 ### Latest Training Results (2025-12-18)
 
-**Unified Railway Dataset Training** (with all expanded features):
+**Era-Normalized Extended Dataset (1999-2023) with Temporal Split:**
 
-| Dataset | Samples | Features | R² Score | RMSE |
-|---------|---------|----------|----------|------|
-| Base (no leakage) | 6,088 | 66 | 0.6126 | 3.55 PPG |
-| **Expanded (Railway)** | **5,659** | **157** | **0.9102** | **1.78 PPG** |
+| Metric | Value |
+|--------|-------|
+| Training Samples | 9,414 player-seasons |
+| Test Samples | 1,182 (2023 only) |
+| Features | 168 |
+| **Ensemble R²** | **0.801** |
+| **RMSE** | **2.47 PPG** |
+| MAE | 1.92 PPG |
 
-**Component Model Performance (Random Split):**
+**Component Model Performance (Temporal Split 2023 test):**
 
 | Component | R² Score |
 |-----------|----------|
-| GBM (sklearn) | 0.9102 |
-| Random Forest | 0.9060 |
-| Ridge Regression | 0.7468 |
-| **Ensemble** | **0.8996** |
+| LightGBM | 0.803 |
+| Random Forest | 0.765 |
+| Ridge Regression | 0.707 |
+| Neural Network | 0.695 |
+| **Stacked Ensemble** | **0.801** |
 
-**Data Unification Completed:**
-- Synced 111 CombineResult records to Railway
-- Synced 300 DraftPick records to Railway
-- Added enhanced_features.csv (contract data, athletic percentiles)
-- Added graph_features.parquet (team tendencies)
+**Era-Normalized Features Added:**
+- `ppg_ppr_zscore`, `ppg_ppr_percentile` - Within-era PPG normalization
+- `targets_zscore`, `receptions_zscore` - Usage normalization
+- `snap_pct_zscore` - Opportunity normalization
+- `sample_weight` - Time decay (0.92^years_ago)
+- `yoy_ppg_change`, `yoy_targets_change` - Year-over-year deltas
 
-**Key Feature Coverage (179 total features):**
-- PBP features (EPA, aDOT, WOPR): 78%
-- Contract data: 100%
-- Team tendencies: 100%
-- KTC trends: 61%
-
-**Note:** Temporal split (2022+ test) shows R² = 0.64 due to distribution shift, but random split achieves R² = 0.91. The temporal result is more realistic for true future prediction.
+**IMPORTANT**: Previous claims of 0.91 R² were from random train/test splits which cause data leakage. The true temporal R² (training pre-2023, testing 2023) is 0.80.
 
 ### Position-Specific Performance
 
@@ -316,7 +321,7 @@ GitHub Action `.github/workflows/daily-retrain.yml` runs every day at noon UTC t
 1. Check data freshness (skip if models updated <20 hours ago)
 2. Rebuild dataset with fresh KTC data
 3. Train optimized ensemble
-4. Validate R² >= 0.88 threshold
+4. Validate R² >= 0.75 threshold (temporal evaluation)
 5. Update model registry and trigger Railway deploy
 
 Cost-optimized with concurrency limits and freshness checks to stay within GitHub Actions free tier.
@@ -336,7 +341,7 @@ registry = ModelRegistry(models_dir='data/models')
 registry.register_model(
     model_type='stacked_ensemble',
     version='v2.1',
-    metrics={'r2': 0.91, 'rmse': 2.1},
+    metrics={'r2': 0.80, 'rmse': 2.47},
     config={'n_folds': 5, 'stacking': True},
     files={'nn': 'data/models/optimized_nn.pt', ...},
     set_production=True

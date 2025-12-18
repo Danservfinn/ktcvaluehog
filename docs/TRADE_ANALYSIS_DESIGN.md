@@ -2,7 +2,7 @@
 
 ## Vision
 
-Generate a **short research paper** for every trade analysis, leveraging our 750K+ nodes of player data and R²=0.91 ML model. Instead of simple value comparisons, Elite users get a comprehensive dynasty intelligence report.
+Generate a **short research paper** for every trade analysis, leveraging our 750K+ nodes of player data and R²=0.80 ML model (temporal evaluation). Instead of simple value comparisons, Elite users get a comprehensive dynasty intelligence report.
 
 ---
 
@@ -27,7 +27,7 @@ Generate a **short research paper** for every trade analysis, leveraging our 750
 
 ### ML Model Outputs
 
-- Projected PPG (R² = 0.91)
+- Projected PPG (R² = 0.80, temporal evaluation)
 - Confidence intervals (floor/ceiling)
 - Position rank projections
 - Breakout/bust probability
