@@ -34,18 +34,27 @@ async def get_current_user(
     """
     Extract and validate user from Supabase JWT.
     Returns None for anonymous users (allowed for free tier endpoints).
+    Supports admin-bypass-token for testing.
     """
     if not credentials:
         return None
 
     settings = get_settings()
+    token = credentials.credentials
+
+    # Admin bypass token (for testing without Supabase)
+    if token == "admin-bypass-token":
+        return User(
+            id="admin",
+            email="admin@thoth.local",
+            tier=UserTier.ELITE,
+        )
 
     if not settings.supabase_jwt_secret:
         # Auth not configured - allow all requests (dev mode)
         return None
 
     try:
-        token = credentials.credentials
         payload = jwt.decode(
             token,
             settings.supabase_jwt_secret,

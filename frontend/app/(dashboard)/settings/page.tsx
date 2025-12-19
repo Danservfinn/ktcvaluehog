@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -24,20 +24,54 @@ import {
   Settings,
   Shield,
   ExternalLink,
+  AlertCircle,
 } from "lucide-react";
+import {
+  getAnthropicKey,
+  setAnthropicKey,
+  removeAnthropicKey,
+  maskApiKey,
+  isValidKeyFormat,
+} from "@/lib/byok";
 
 export default function SettingsPage() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [apiKey, setApiKey] = useState("");
-  const [savedKey, setSavedKey] = useState("");
+  const [savedKey, setSavedKey] = useState<string | null>(null);
+  const [keyError, setKeyError] = useState<string | null>(null);
   const [leagueId, setLeagueId] = useState("");
   const [connectedLeagues, setConnectedLeagues] = useState<string[]>([]);
 
+  // Load saved key from localStorage on mount
+  useEffect(() => {
+    const stored = getAnthropicKey();
+    if (stored) {
+      setSavedKey(stored);
+    }
+  }, []);
+
   const handleSaveApiKey = () => {
-    if (apiKey) {
+    if (!apiKey) return;
+
+    setKeyError(null);
+
+    if (!isValidKeyFormat(apiKey)) {
+      setKeyError("Invalid API key format. Keys should start with 'sk-ant-'");
+      return;
+    }
+
+    try {
+      setAnthropicKey(apiKey);
       setSavedKey(apiKey);
       setApiKey("");
+    } catch (err: any) {
+      setKeyError(err.message || "Failed to save API key");
     }
+  };
+
+  const handleRemoveApiKey = () => {
+    removeAnthropicKey();
+    setSavedKey(null);
   };
 
   const handleConnectLeague = () => {
@@ -148,13 +182,13 @@ export default function SettingsPage() {
                   <span className="text-sm font-medium">API Key Connected</span>
                 </div>
                 <code className="text-sm text-muted-foreground font-mono">
-                  sk-ant-...{savedKey.slice(-8)}
+                  {maskApiKey(savedKey)}
                 </code>
               </div>
               <Button
                 variant="destructive"
                 size="sm"
-                onClick={() => setSavedKey("")}
+                onClick={handleRemoveApiKey}
               >
                 Remove Key
               </Button>
@@ -181,6 +215,12 @@ export default function SettingsPage() {
                   )}
                 </Button>
               </div>
+              {keyError && (
+                <div className="flex items-center gap-2 text-sm text-rose-500">
+                  <AlertCircle className="h-4 w-4" />
+                  {keyError}
+                </div>
+              )}
               <div className="flex items-center gap-3">
                 <Button onClick={handleSaveApiKey} disabled={!apiKey}>
                   Save API Key

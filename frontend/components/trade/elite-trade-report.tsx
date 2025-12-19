@@ -28,9 +28,12 @@ import {
   Calendar,
 } from "lucide-react";
 import { EliteTradeAnalysis, ElitePlayerAnalysis, EliteTradeSide } from "@/lib/api";
+import { WrittenReportSection } from "./written-report-section";
 
 interface EliteTradeReportProps {
   analysis: EliteTradeAnalysis;
+  givePlayers?: string[];
+  getPlayers?: string[];
 }
 
 function VerdictBadge({ verdict, score }: { verdict: string; score: number }) {
@@ -134,12 +137,31 @@ function CollapsibleSection({
   );
 }
 
+function StatBox({ label, value, unit = "", highlight = false }: { label: string; value?: number | string | null; unit?: string; highlight?: boolean }) {
+  if (value === undefined || value === null) return null;
+  const displayValue = typeof value === "number" ? value.toFixed(1) : value;
+  return (
+    <div className={`text-center p-2 rounded ${highlight ? "bg-primary/10" : "bg-secondary/30"}`}>
+      <p className="text-xs text-muted-foreground truncate">{label}</p>
+      <p className={`font-medium text-sm ${highlight ? "text-primary" : ""}`}>
+        {displayValue}{unit}
+      </p>
+    </div>
+  );
+}
+
 function PlayerCard({ player, variant }: { player: ElitePlayerAnalysis; variant: "give" | "get" }) {
+  const [showDetails, setShowDetails] = useState(false);
   const borderColor = variant === "give" ? "border-rose-200" : "border-emerald-200";
   const bgColor = variant === "give" ? "bg-rose-50/50" : "bg-emerald-50/50";
 
+  const hasProductionData = player.production.season_ppg || player.production.target_share || player.production.red_zone_share;
+  const hasInjuryData = player.risk.injury_burden_score || player.risk.games_missed_3yr;
+  const hasProjectionData = player.dynasty.projected_ppg || player.dynasty.projection_floor;
+
   return (
     <div className={`p-4 rounded-lg border ${borderColor} ${bgColor}`}>
+      {/* Header Row */}
       <div className="flex items-start justify-between mb-3">
         <div>
           <div className="flex items-center gap-2">
@@ -149,56 +171,146 @@ function PlayerCard({ player, variant }: { player: ElitePlayerAnalysis; variant:
             <span className="font-semibold">{player.name}</span>
             <GradeBadge grade={player.overall_grade} />
           </div>
-          <p className="text-sm text-muted-foreground mt-1">{player.team} | Age {player.age}</p>
+          <p className="text-sm text-muted-foreground mt-1">{player.team || "FA"} | Age {player.age}</p>
         </div>
         <div className="text-right">
           <p className="font-mono font-bold">{player.value.current_value.toLocaleString()}</p>
           <div className="flex items-center gap-1 justify-end">
             <TrendIcon trend={player.value.value_trend} />
-            <span className="text-xs text-muted-foreground">
-              {player.value.value_30d_change !== undefined
-                ? `${player.value.value_30d_change >= 0 ? "+" : ""}${player.value.value_30d_change.toFixed(0)}%`
+            <span className={`text-xs ${
+              player.value.value_30d_change && player.value.value_30d_change > 0
+                ? "text-emerald-600"
+                : player.value.value_30d_change && player.value.value_30d_change < 0
+                ? "text-rose-600"
+                : "text-muted-foreground"
+            }`}>
+              {player.value.value_30d_change != null
+                ? `${player.value.value_30d_change >= 0 ? "+" : ""}${player.value.value_30d_change.toFixed(0)}% 30d`
                 : "—"}
             </span>
           </div>
         </div>
       </div>
 
+      {/* One-liner */}
       <p className="text-sm text-muted-foreground italic mb-3">{player.one_liner}</p>
 
-      <div className="grid grid-cols-2 gap-3 text-sm">
-        <div>
-          <p className="text-xs text-muted-foreground">Dynasty Outlook</p>
-          <div className="flex items-center gap-2 mt-1">
-            <AgingBadge position={player.dynasty.aging_curve_position} />
-            {player.dynasty.years_in_peak !== undefined && (
-              <span className="text-xs">{player.dynasty.years_in_peak}yr in peak</span>
-            )}
-          </div>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground">Injury Risk</p>
-          <div className="flex items-center gap-2 mt-1">
-            <RiskBadge level={player.risk.injury_risk_level} />
-          </div>
-        </div>
-        {player.production.season_ppg && (
-          <div>
-            <p className="text-xs text-muted-foreground">Season PPG</p>
-            <p className="font-medium">{player.production.season_ppg.toFixed(1)}</p>
-          </div>
+      {/* Key Stats Grid - Always Visible */}
+      <div className="grid grid-cols-4 gap-2 text-sm mb-3">
+        <StatBox label="PPG" value={player.production.season_ppg} highlight />
+        {player.position === "RB" ? (
+          <StatBox label="Touch%" value={player.production.touch_share || player.production.target_share} unit="%" />
+        ) : (
+          <StatBox label="Tgt%" value={player.production.target_share} unit="%" />
         )}
-        {player.production.target_share && (
-          <div>
-            <p className="text-xs text-muted-foreground">Target Share</p>
-            <p className="font-medium">{player.production.target_share.toFixed(1)}%</p>
+        <StatBox label="RZ%" value={player.production.red_zone_share} unit="%" />
+        <div className="text-center p-2 rounded bg-secondary/30">
+          <p className="text-xs text-muted-foreground">Risk</p>
+          <RiskBadge level={player.risk.injury_risk_level} />
+        </div>
+      </div>
+
+      {/* Dynasty & Aging Row */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <AgingBadge position={player.dynasty.aging_curve_position} />
+          {player.dynasty.years_in_peak !== undefined && player.dynasty.years_in_peak > 0 && (
+            <span className="text-xs text-muted-foreground">{player.dynasty.years_in_peak}yr in peak</span>
+          )}
+        </div>
+        {player.dynasty.projected_ppg && (
+          <div className="text-xs">
+            <span className="text-muted-foreground">ML Proj: </span>
+            <span className="font-medium text-primary">{player.dynasty.projected_ppg.toFixed(1)} PPG</span>
           </div>
         )}
       </div>
 
-      {/* Projected Values */}
+      {/* Expandable Details Toggle */}
+      {(hasProductionData || hasInjuryData || hasProjectionData) && (
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className="w-full text-xs text-primary hover:text-primary/80 flex items-center justify-center gap-1 py-1"
+        >
+          {showDetails ? (
+            <>
+              <ChevronUp className="h-3 w-3" />
+              Hide Details
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-3 w-3" />
+              Show Details
+            </>
+          )}
+        </button>
+      )}
+
+      {/* Expanded Details */}
+      {showDetails && (
+        <div className="mt-3 pt-3 border-t border-border/50 space-y-4">
+          {/* Production Deep Dive */}
+          {hasProductionData && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                <Activity className="h-3 w-3" /> Production Metrics
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <StatBox label="Last 4 PPG" value={player.production.last_4_ppg} />
+                <StatBox label="EPA/Touch" value={player.production.epa_per_touch} />
+                {player.position !== "RB" && <StatBox label="WOPR" value={player.production.wopr} />}
+                {player.position !== "RB" && <StatBox label="ADOT" value={player.production.adot} />}
+                {player.position === "RB" && <StatBox label="Touch%" value={player.production.touch_share} unit="%" />}
+                <StatBox label="Boom%" value={player.production.boom_rate} unit="%" />
+                <StatBox label="Bust%" value={player.production.bust_rate} unit="%" />
+              </div>
+            </div>
+          )}
+
+          {/* Injury Profile */}
+          {hasInjuryData && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" /> Injury Profile
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <StatBox label="Burden Score" value={player.risk.injury_burden_score} />
+                <StatBox label="Games Missed (3yr)" value={player.risk.games_missed_3yr} />
+              </div>
+              {player.risk.key_injury_concerns && (
+                <p className="text-xs text-rose-600 mt-2 italic">{player.risk.key_injury_concerns}</p>
+              )}
+            </div>
+          )}
+
+          {/* ML Projections */}
+          {hasProjectionData && (
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                <Zap className="h-3 w-3" /> ML Projections
+              </p>
+              <div className="grid grid-cols-4 gap-2">
+                <StatBox label="Projected" value={player.dynasty.projected_ppg} highlight />
+                <StatBox label="Floor" value={player.dynasty.projection_floor} />
+                <StatBox label="Ceiling" value={player.dynasty.projection_ceiling} />
+                <StatBox
+                  label="Confidence"
+                  value={player.dynasty.projection_confidence ? `${(player.dynasty.projection_confidence * 100).toFixed(0)}%` : null}
+                />
+              </div>
+              {player.dynasty.projected_pos_rank && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Projected {player.position}{player.dynasty.projected_pos_rank}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Projected Values - Always Visible */}
       <div className="mt-3 pt-3 border-t border-border/50">
-        <p className="text-xs text-muted-foreground mb-2">Projected Value</p>
+        <p className="text-xs text-muted-foreground mb-2">Projected KTC Value</p>
         <div className="flex gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">1yr: </span>
@@ -280,9 +392,19 @@ function ScoreBar({ label, value, max = 30 }: { label: string; value: number; ma
   );
 }
 
-export function EliteTradeReport({ analysis }: EliteTradeReportProps) {
+export function EliteTradeReport({ analysis, givePlayers = [], getPlayers = [] }: EliteTradeReportProps) {
   return (
     <div className="space-y-6">
+      {/* Written Report Section - Research Paper Style */}
+      {analysis.written_report && (
+        <WrittenReportSection
+          narrative={analysis.written_report}
+          analysis={analysis}
+          givePlayers={givePlayers}
+          getPlayers={getPlayers}
+        />
+      )}
+
       {/* Executive Summary */}
       <Card variant="elevated" className="border-2 border-primary/20">
         <CardHeader className="pb-4">

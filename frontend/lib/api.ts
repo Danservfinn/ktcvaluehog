@@ -149,6 +149,17 @@ export interface TradeScoreBreakdown {
   total_edge: number;
 }
 
+export interface TradeNarrative {
+  introduction: string;
+  player_analysis_give: string[];
+  player_analysis_get: string[];
+  value_analysis: string;
+  dynasty_outlook: string;
+  risk_assessment: string;
+  recommendation: string;
+  closing: string;
+}
+
 export interface EliteTradeAnalysis {
   verdict: 'WIN' | 'LOSE' | 'FAIR';
   verdict_score: number;
@@ -164,6 +175,7 @@ export interface EliteTradeAnalysis {
   recommendation_decline_if: string[];
   suggested_additions?: string;
   similar_trade_note?: string;
+  written_report?: TradeNarrative;
 }
 
 export interface PaginatedResponse<T> {
@@ -345,6 +357,27 @@ class ApiClient {
         superflex: options.superflex || false,
         tep: options.tep || false,
       }),
+    });
+  }
+
+  async enhanceTradeNarrative(analysis: EliteTradeAnalysis): Promise<Response> {
+    /**
+     * Get AI-enhanced narrative for a trade analysis.
+     * Uses Claude Opus 4.5 via BYOK (Bring Your Own Key).
+     * Returns raw Response for streaming.
+     */
+    const anthropicKey = getStoredKey();
+    if (!anthropicKey) {
+      throw new Error('Anthropic API key required. Add it in Settings.');
+    }
+
+    return fetch(`${this.baseUrl}/api/v1/trades/analyze-elite/enhance`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Anthropic-Key': anthropicKey,
+      },
+      body: JSON.stringify({ analysis }),
     });
   }
 

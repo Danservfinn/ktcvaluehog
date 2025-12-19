@@ -103,8 +103,26 @@ export async function signOut() {
 
 /**
  * Get auth token for API requests
+ * Returns Supabase token or admin bypass token
  */
 export async function getAuthToken(): Promise<string | null> {
+  // Check for admin bypass session first
+  if (typeof window !== 'undefined') {
+    const adminSession = localStorage.getItem('thoth_admin_session')
+    if (adminSession) {
+      try {
+        const parsed = JSON.parse(adminSession)
+        if (parsed.expires > Date.now()) {
+          // Return a special admin token that backend will recognize
+          return 'admin-bypass-token'
+        }
+      } catch {
+        // Invalid JSON, ignore
+      }
+    }
+  }
+
+  // Fall back to Supabase session
   const session = await getSession()
   return session?.access_token || null
 }

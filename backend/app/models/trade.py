@@ -115,6 +115,21 @@ class PlayerRiskAssessment(BaseModel):
     depth_chart_security: Optional[str] = None
 
 
+class PlayerAthleticProfile(BaseModel):
+    """Athletic testing and draft profile."""
+    # Combine metrics
+    forty_time: Optional[float] = None
+    vertical_jump: Optional[float] = None
+    broad_jump: Optional[int] = None
+    three_cone: Optional[float] = None
+    shuttle: Optional[float] = None
+    bench_press: Optional[int] = None
+    # Draft capital
+    draft_round: Optional[int] = None
+    draft_pick: Optional[int] = None
+    draft_year: Optional[int] = None
+
+
 class ElitePlayerAnalysis(BaseModel):
     """Complete analysis for a single player in elite trade report."""
     player_id: str
@@ -127,6 +142,7 @@ class ElitePlayerAnalysis(BaseModel):
     production: PlayerProductionProfile
     dynasty: PlayerDynastyOutlook
     risk: PlayerRiskAssessment
+    athletic: Optional[PlayerAthleticProfile] = None
 
     # Quick summary
     overall_grade: Optional[str] = None  # "A+", "A", "B+", etc.
@@ -151,6 +167,18 @@ class TradeScoreBreakdown(BaseModel):
     age_edge: float = 0
     risk_edge: float = 0
     total_edge: float = 0
+
+
+class TradeNarrative(BaseModel):
+    """Full research-style written report for a trade."""
+    introduction: str  # Hook paragraph based on verdict/trade type
+    player_analysis_give: list[str]  # Paragraph per player being given
+    player_analysis_get: list[str]  # Paragraph per player being received
+    value_analysis: str  # KTC/projected value comparison narrative
+    dynasty_outlook: str  # Age curves, peak windows discussion
+    risk_assessment: str  # Injury, situational risk discussion
+    recommendation: str  # Final advice prose
+    closing: str  # Summary paragraph
 
 
 class EliteTradeRequest(BaseModel):
@@ -190,3 +218,6 @@ class EliteTradeAnalysis(BaseModel):
 
     # Historical Context
     similar_trade_note: Optional[str] = None
+
+    # Written Report (research-style narrative)
+    written_report: Optional[TradeNarrative] = None
