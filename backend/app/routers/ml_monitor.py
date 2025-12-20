@@ -1,5 +1,6 @@
 """ML Monitor API - Autonomous ML Improvement System Monitoring."""
 
+import os
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Dict, List, Optional, Any
@@ -8,6 +9,9 @@ from datetime import datetime
 import json
 
 router = APIRouter(prefix="/ml-monitor", tags=["ML Monitor"])
+
+# LLM URL - can be local or Cloudflare tunnel URL
+LLM_URL = os.getenv("LLM_URL", "http://172.16.108.209:1234")
 
 # Path to ML experiments data
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
@@ -75,20 +79,22 @@ def load_json_file(path: Path) -> Any:
 
 
 def check_llm_connection() -> Dict[str, Any]:
-    """Check if local LLM is available."""
+    """Check if local LLM is available (local or via Cloudflare tunnel)."""
     try:
         import httpx
-        response = httpx.get("http://172.16.108.209:1234/v1/models", timeout=2.0)
+        response = httpx.get(f"{LLM_URL}/v1/models", timeout=3.0)
         if response.status_code == 200:
+            data = response.json()
+            model_name = data.get("data", [{}])[0].get("id", "unknown") if data.get("data") else "unknown"
             return {
                 "connected": True,
-                "url": "http://172.16.108.209:1234",
-                "model": "openai/gpt-oss-20b",
+                "url": LLM_URL,
+                "model": model_name,
                 "cost": "$0"
             }
     except Exception:
         pass
-    return {"connected": False, "url": None, "model": None, "cost": None}
+    return {"connected": False, "url": LLM_URL, "model": None, "cost": None}
 
 
 @router.get("/status", response_model=MLMonitorResponse)
