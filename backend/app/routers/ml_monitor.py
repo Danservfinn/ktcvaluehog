@@ -3,7 +3,7 @@
 import os
 import signal
 import uuid
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel, Field
 from typing import Dict, List, Optional, Any
 from pathlib import Path
@@ -851,3 +851,295 @@ async def get_hypothesis_types():
     return {
         "types": HYPOTHESIS_TYPES,
     }
+
+
+# ============================================================================
+# NEW ENDPOINTS: Natural Language Hypothesis Parsing (Premium)
+# ============================================================================
+
+class ParseDescriptionRequest(BaseModel):
+    """Request to parse natural language hypothesis description."""
+    description: str = Field(..., min_length=10, max_length=2000)
+    context: Optional[str] = None
+    use_local_llm: bool = Field(default=False, description="Use local LLM instead of Anthropic API")
+
+
+class MatchedFeature(BaseModel):
+    """A feature matched from the user's description."""
+    name: str
+    category: str
+    description: str
+    correlation: Optional[float] = None
+    match_confidence: float = Field(..., ge=0, le=1)
+    match_reason: str
+
+
+class ParsedHypothesis(BaseModel):
+    """Parsed hypothesis from natural language description."""
+    success: bool
+    hypothesis_type: str
+    hypothesis_type_confidence: float = Field(..., ge=0, le=1)
+    matched_features: List[MatchedFeature]
+    suggested_operation: Optional[str] = None
+    suggested_formula: Optional[str] = None
+    generated_description: str
+    expected_impact: Optional[str] = None
+    warnings: List[str] = []
+    alternative_interpretations: List[str] = []
+    llm_source: str = Field(..., description="'anthropic' or 'local'")
+
+
+def build_feature_catalog_for_prompt() -> str:
+    """Build a compact feature catalog JSON for the LLM prompt."""
+    catalog = {}
+    for category, data in ML_FEATURES_CATALOG.items():
+        catalog[category] = {
+            "description": data["description"],
+            "features": [
+                {
+                    "name": f["name"],
+                    "description": f.get("description", ""),
+                    "correlation": f.get("correlation")
+                }
+                for f in data["features"]
+            ]
+        }
+    return json.dumps(catalog, indent=2)
+
+
+HYPOTHESIS_PARSING_PROMPT = """You are an expert ML engineer analyzing a natural language hypothesis for a dynasty fantasy football prediction system.
+
+AVAILABLE ML FEATURES (168 total across 12 categories):
+{feature_catalog}
+
+HYPOTHESIS TYPES:
+- feature_addition: Add new predictive features
+- feature_removal: Remove low-signal features
+- feature_combination: Create interaction features (multiply, divide, add, etc.)
+- hyperparameter: Tune model parameters
+- architecture: Modify neural network structure
+- ensemble_config: Adjust ensemble weights
+- data_augmentation: Add training data
+- loss_function: Change loss function
+- regularization: Add/modify regularization
+- attention_mechanism: Modify attention layers
+- position_specialist: Position-specific models
+- error_targeted: Fix specific prediction errors
+
+USER'S HYPOTHESIS DESCRIPTION:
+"{user_description}"
+
+YOUR TASK: Parse this hypothesis and match it to available features.
+
+MATCHING RULES:
+1. ONLY match to features that EXACTLY exist in the catalog above
+2. Use semantic similarity - "targets" matches "targets", "snaps" matches "avg_snap_pct", "PPG" matches "ppg_ppr"
+3. Consider category context when matching ambiguous terms
+4. Prefer higher correlation features when multiple could match
+5. If the user mentions features that don't exist, include a warning
+
+OUTPUT FORMAT (JSON only, no markdown code blocks):
+{{
+  "hypothesis_type": "one of the types above",
+  "type_confidence": 0.0-1.0,
+  "matched_features": [
+    {{
+      "name": "exact_feature_name_from_catalog",
+      "match_confidence": 0.0-1.0,
+      "match_reason": "brief explanation of why this feature matches"
+    }}
+  ],
+  "operation": "interaction|ratio|sum|difference|none",
+  "formula": "df['feature1'] * df['feature2']",
+  "refined_description": "clearer/more technical version of the hypothesis",
+  "expected_impact": "estimated improvement description",
+  "warnings": ["any concerns about the hypothesis"],
+  "alternatives": ["other possible interpretations"]
+}}
+
+Respond with ONLY the JSON object, no additional text."""
+
+
+async def parse_with_local_llm(description: str, context: Optional[str] = None) -> Dict[str, Any]:
+    """Parse hypothesis using local LLM (OpenAI-compatible API)."""
+    import httpx
+
+    prompt = HYPOTHESIS_PARSING_PROMPT.format(
+        feature_catalog=build_feature_catalog_for_prompt(),
+        user_description=description
+    )
+
+    if context:
+        prompt += f"\n\nADDITIONAL CONTEXT: {context}"
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(
+            f"{LLM_URL}/v1/chat/completions",
+            json={
+                "model": "local-model",
+                "messages": [
+                    {"role": "system", "content": "You are an ML hypothesis parser. Return valid JSON only, no markdown."},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.3,
+                "max_tokens": 2000
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        content = data["choices"][0]["message"]["content"]
+
+        # Clean up response - remove markdown if present
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        content = content.strip()
+
+        return json.loads(content)
+
+
+async def parse_with_anthropic(description: str, api_key: str, context: Optional[str] = None) -> Dict[str, Any]:
+    """Parse hypothesis using Anthropic Claude API (BYOK)."""
+    import httpx
+
+    prompt = HYPOTHESIS_PARSING_PROMPT.format(
+        feature_catalog=build_feature_catalog_for_prompt(),
+        user_description=description
+    )
+
+    if context:
+        prompt += f"\n\nADDITIONAL CONTEXT: {context}"
+
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        response = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json"
+            },
+            json={
+                "model": "claude-3-5-sonnet-20241022",
+                "max_tokens": 2000,
+                "messages": [
+                    {"role": "user", "content": prompt}
+                ]
+            }
+        )
+        response.raise_for_status()
+        data = response.json()
+        content = data["content"][0]["text"]
+
+        # Clean up response - remove markdown if present
+        if content.startswith("```"):
+            content = content.split("```")[1]
+            if content.startswith("json"):
+                content = content[4:]
+        content = content.strip()
+
+        return json.loads(content)
+
+
+def enrich_matched_features(parsed_features: List[Dict]) -> List[MatchedFeature]:
+    """Enrich matched features with catalog metadata."""
+    enriched = []
+
+    for match in parsed_features:
+        feature_name = match.get("name", "")
+
+        # Find in catalog
+        for category, data in ML_FEATURES_CATALOG.items():
+            for feat in data["features"]:
+                if feat["name"] == feature_name:
+                    enriched.append(MatchedFeature(
+                        name=feature_name,
+                        category=category,
+                        description=feat.get("description", ""),
+                        correlation=feat.get("correlation"),
+                        match_confidence=match.get("match_confidence", 0.8),
+                        match_reason=match.get("match_reason", "Matched by name")
+                    ))
+                    break
+
+    return enriched
+
+
+@router.post("/hypothesis/parse-description", response_model=ParsedHypothesis)
+async def parse_hypothesis_description(
+    request: ParseDescriptionRequest,
+    x_anthropic_key: Optional[str] = Header(None, alias="X-Anthropic-Key")
+):
+    """
+    Parse natural language hypothesis description using AI.
+
+    Supports two LLM sources:
+    - Local LLM (set use_local_llm=true) - Uses LLM_URL environment variable
+    - Anthropic Claude (BYOK) - Requires X-Anthropic-Key header
+
+    Returns structured hypothesis with matched features and suggestions.
+    """
+    import httpx
+
+    try:
+        llm_source = "local"
+        parsed = None
+
+        if request.use_local_llm:
+            # Use local LLM
+            llm_status = check_llm_connection()
+            if not llm_status["connected"]:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Local LLM is not available. Check LLM_URL configuration."
+                )
+            parsed = await parse_with_local_llm(request.description, request.context)
+            llm_source = "local"
+
+        elif x_anthropic_key:
+            # Use Anthropic API (BYOK)
+            parsed = await parse_with_anthropic(request.description, x_anthropic_key, request.context)
+            llm_source = "anthropic"
+
+        else:
+            # Try local LLM as fallback
+            llm_status = check_llm_connection()
+            if llm_status["connected"]:
+                parsed = await parse_with_local_llm(request.description, request.context)
+                llm_source = "local"
+            else:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No LLM available. Provide X-Anthropic-Key header or configure local LLM."
+                )
+
+        # Enrich matched features with catalog data
+        matched_features = enrich_matched_features(parsed.get("matched_features", []))
+
+        return ParsedHypothesis(
+            success=True,
+            hypothesis_type=parsed.get("hypothesis_type", "feature_addition"),
+            hypothesis_type_confidence=parsed.get("type_confidence", 0.8),
+            matched_features=matched_features,
+            suggested_operation=parsed.get("operation"),
+            suggested_formula=parsed.get("formula"),
+            generated_description=parsed.get("refined_description", request.description),
+            expected_impact=parsed.get("expected_impact"),
+            warnings=parsed.get("warnings", []),
+            alternative_interpretations=parsed.get("alternatives", []),
+            llm_source=llm_source
+        )
+
+    except httpx.HTTPStatusError as e:
+        if e.response.status_code == 401:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+        raise HTTPException(status_code=502, detail=f"LLM API error: {str(e)}")
+
+    except json.JSONDecodeError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to parse LLM response as JSON. The model may have returned invalid format."
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Parsing failed: {str(e)}")
