@@ -1,0 +1,10 @@
+# Cloudflare Pages Configuration for Thoth Frontend
+# https://developers.cloudflare.com/pages/configuration/wrangler-configuration/
+
+name = "dynastyedge"
+compatibility_date = "2024-12-01"
+pages_build_output_dir = "out"
+
+# Environment variables for production
+[vars]
+NEXT_PUBLIC_API_URL = "https://dynasty-api-production.up.railway.app"

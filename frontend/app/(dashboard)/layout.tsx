@@ -20,6 +20,8 @@ import {
   LogIn,
   User,
   Shield,
+  Bot,
+  Trophy,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
@@ -50,7 +52,7 @@ function ThothLogo({ size = "default" }: { size?: "default" | "small" }) {
   );
 }
 
-// Miller's Law: Exactly 6 navigation items (consolidated Players/Rankings)
+// Miller's Law: 7 navigation items (within 7±2 optimal range)
 const navItems = [
   {
     href: "/",
@@ -75,12 +77,28 @@ const navItems = [
     description: "Trade analyzer",
   },
   {
+    href: "/league",
+    matchPath: "/league",
+    label: "League",
+    icon: Trophy,
+    tier: "elite",
+    description: "Sleeper analysis",
+  },
+  {
     href: "/projections",
     matchPath: "/projections",
     label: "Projections",
     icon: LineChart,
     tier: "elite",
     description: "ML predictions",
+  },
+  {
+    href: "/ml-monitor",
+    matchPath: "/ml-monitor",
+    label: "ML Monitor",
+    icon: Bot,
+    tier: "elite",
+    description: "Autonomous ML",
   },
   {
     href: "/chat",

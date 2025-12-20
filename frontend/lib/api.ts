@@ -266,6 +266,161 @@ export interface PlayerResearch {
   one_liner?: string;
 }
 
+// League Analysis Types
+export interface SleeperLeague {
+  league_id: string;
+  name: string;
+  season: string;
+  status: string;
+  total_rosters: number;
+  roster_positions: string[];
+  scoring_settings: Record<string, number>;
+  settings: Record<string, unknown>;
+}
+
+export interface LeagueConnectResponse {
+  user_id: string;
+  username: string;
+  leagues: SleeperLeague[];
+}
+
+export interface LeaguePlayerAnalysis {
+  player_id: string;
+  sleeper_id?: string;
+  name: string;
+  position: string;
+  team?: string;
+  age?: number;
+  ktc_value: number;
+  projected_ppg?: number;
+  years_until_peak?: number;
+  years_in_peak?: number;
+  career_phase?: string;
+  is_starter: boolean;
+  is_breakout_candidate: boolean;
+  is_sell_candidate: boolean;
+}
+
+export interface PositionalStrength {
+  position: string;
+  starter_value: number;
+  starter_ppg: number;
+  depth_value: number;
+  depth_ppg: number;
+  total_value: number;
+  player_count: number;
+  grade: string;
+}
+
+export interface RosterAnalysis {
+  roster_id: number;
+  owner_id?: string;
+  team_name: string;
+  players: LeaguePlayerAnalysis[];
+  starters: LeaguePlayerAnalysis[];
+  bench: LeaguePlayerAnalysis[];
+  total_ktc_value: number;
+  total_projected_ppg: number;
+  starter_ppg: number;
+  positional_strength: PositionalStrength[];
+  average_age: number;
+  future_picks: { year: number; round: number; original_owner: number; value: number }[];
+  draft_capital_value: number;
+  classification: 'CONTENDER' | 'FRINGE' | 'REBUILDER';
+  dynasty_health_score: number;
+  championship_probability: number;
+}
+
+export interface DynastyHealthBreakdown {
+  total_score: number;
+  age_score: number;
+  peak_overlap_score: number;
+  injury_risk_score: number;
+  position_wins_score: number;
+  draft_capital_score: number;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
+}
+
+export interface ChampionshipSimulation {
+  simulations_run: number;
+  playoff_probability: number;
+  bye_probability: number;
+  championship_probability: number;
+  seed_probabilities: Record<number, number>;
+  expected_wins: number;
+  expected_points_for: number;
+  best_case_record: string;
+  worst_case_record: string;
+  most_likely_record: string;
+}
+
+export interface TradeTarget {
+  player: LeaguePlayerAnalysis;
+  owner_roster_id: number;
+  owner_team_name: string;
+  trade_value: number;
+  fit_score: number;
+  availability_score: number;
+}
+
+export interface TradeSuggestion {
+  give_players: LeaguePlayerAnalysis[];
+  get_players: LeaguePlayerAnalysis[];
+  give_value: number;
+  get_value: number;
+  value_differential: number;
+  your_ppg_change: number;
+  their_ppg_change: number;
+  your_championship_change: number;
+  rationale: string;
+  win_win_score: number;
+}
+
+export interface TradePartner {
+  roster_id: number;
+  team_name: string;
+  owner_name: string;
+  weak_positions: string[];
+  trade_targets: TradeTarget[];
+  suggestions: TradeSuggestion[];
+  compatibility_score: number;
+}
+
+export interface PowerRanking {
+  rank: number;
+  roster_id: number;
+  team_name: string;
+  owner_name: string;
+  ktc_value: number;
+  projected_value: number;
+  dynasty_health_score: number;
+  championship_probability: number;
+  classification: 'CONTENDER' | 'FRINGE' | 'REBUILDER';
+  value_trend: string;
+}
+
+export interface LeagueAnalysis {
+  league_id: string;
+  league_name: string;
+  season: string;
+  scoring_type: 'ppr' | 'half_ppr' | 'standard';
+  total_teams: number;
+  your_roster_id: number;
+  your_analysis: RosterAnalysis;
+  your_dynasty_health: DynastyHealthBreakdown;
+  your_championship_odds: ChampionshipSimulation;
+  power_rankings: PowerRanking[];
+  trade_partners: TradePartner[];
+  top_trade_suggestions: TradeSuggestion[];
+  buy_low_targets: TradeTarget[];
+  sell_high_candidates: LeaguePlayerAnalysis[];
+  waiver_targets: LeaguePlayerAnalysis[];
+  analysis_timestamp: string;
+  data_freshness: string;
+}
+
 export interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
@@ -540,6 +695,56 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ player_name: playerName }),
     }, true, true);
+  }
+
+  // League Analysis endpoints
+  async connectSleeper(username: string): Promise<LeagueConnectResponse> {
+    return this.fetch('/api/v1/league/connect', {
+      method: 'POST',
+      body: JSON.stringify({ sleeper_username: username }),
+    });
+  }
+
+  async analyzeLeague(leagueId: string, rosterId?: number): Promise<LeagueAnalysis> {
+    const params = rosterId ? `?roster_id=${rosterId}` : '';
+    return this.fetch(`/api/v1/league/${leagueId}/analysis${params}`);
+  }
+
+  async getPowerRankings(leagueId: string): Promise<PowerRanking[]> {
+    return this.fetch(`/api/v1/league/${leagueId}/power-rankings`);
+  }
+
+  async getRosterAnalysis(leagueId: string, rosterId: number): Promise<RosterAnalysis> {
+    return this.fetch(`/api/v1/league/${leagueId}/roster/${rosterId}`);
+  }
+
+  async getLeagueTrades(leagueId: string, rosterId?: number): Promise<{
+    trade_partners: TradePartner[];
+    top_suggestions: TradeSuggestion[];
+    buy_low_targets: TradeTarget[];
+    sell_high_candidates: LeaguePlayerAnalysis[];
+  }> {
+    const params = rosterId ? `?roster_id=${rosterId}` : '';
+    return this.fetch(`/api/v1/league/${leagueId}/trades${params}`);
+  }
+
+  async getDynastyHealth(leagueId: string, rosterId?: number): Promise<DynastyHealthBreakdown> {
+    const params = rosterId ? `?roster_id=${rosterId}` : '';
+    return this.fetch(`/api/v1/league/${leagueId}/dynasty-health${params}`);
+  }
+
+  async getChampionshipOdds(leagueId: string, rosterId?: number): Promise<ChampionshipSimulation> {
+    const params = rosterId ? `?roster_id=${rosterId}` : '';
+    return this.fetch(`/api/v1/league/${leagueId}/championship-odds${params}`);
+  }
+
+  async getLeagueState(leagueId: string): Promise<{
+    league: SleeperLeague;
+    nfl_state: Record<string, unknown>;
+    current_week: number;
+    season: string;
+  }> {
+    return this.fetch(`/api/v1/league/${leagueId}/state`);
   }
 }
 

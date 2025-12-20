@@ -13,6 +13,8 @@ from .routers import (
     rankings_router,
     projections_router,
     chat_router,
+    ml_monitor_router,
+    league_router,
 )
 
 
@@ -73,6 +75,8 @@ Supabase JWT tokens required for authenticated endpoints.
     app.include_router(rankings_router, prefix="/api/v1")
     app.include_router(projections_router, prefix="/api/v1")
     app.include_router(chat_router, prefix="/api/v1")
+    app.include_router(ml_monitor_router, prefix="/api/v1")
+    app.include_router(league_router)  # Already has /api/v1/league prefix
 
     @app.get("/")
     async def root():
