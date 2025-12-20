@@ -22,7 +22,7 @@ from ..models.league import (
     StartSitRecommendation,
 )
 from .sleeper import SleeperClient, get_sleeper_client
-from ..database import get_neo4j_client
+from ..database import get_db
 
 
 # Position peak ages for dynasty analysis
@@ -46,7 +46,7 @@ class LeagueAnalyzer:
 
     def __init__(self):
         self.sleeper = get_sleeper_client()
-        self.neo4j = get_neo4j_client()
+        self.neo4j = get_db()
         self._player_cache: dict = {}
 
     async def _load_player_data(self, player_ids: list[str]) -> dict[str, dict]:
