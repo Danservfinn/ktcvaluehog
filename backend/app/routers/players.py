@@ -502,9 +502,12 @@ async def get_player_research(player_id: str):
         OPTIONAL MATCH (pbp:PlayByPlayAggregates)
         WHERE pbp.player_id = p.gsis_id AND pbp.season >= 2023
 
-        // Season stats (latest available)
+        // Season stats (latest available - prefer 2024 over 2023)
         OPTIONAL MATCH (ss:HistoricalSeasonStats)
         WHERE ss.player_id = p.gsis_id AND ss.season >= 2023
+        WITH p, kt, ip, rp, pbp, ss
+        ORDER BY ss.season DESC
+        WITH p, kt, ip, rp, pbp, head(collect(ss)) as ss
 
         // ML projections
         OPTIONAL MATCH (p)-[:HAS_PROJECTION]->(proj:PlayerProjection)
