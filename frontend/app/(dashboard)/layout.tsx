@@ -55,8 +55,8 @@ function ThothLogo({ size = "default" }: { size?: "default" | "small" }) {
 // Miller's Law: 7 navigation items (within 7±2 optimal range)
 const navItems = [
   {
-    href: "/",
-    matchPath: "/",
+    href: "/home",
+    matchPath: "/home",
     exactMatch: true,
     label: "Dashboard",
     icon: LayoutDashboard,

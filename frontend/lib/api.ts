@@ -19,6 +19,7 @@ export interface Player {
   signal?: string;
   edge_score?: number;
   predicted_value?: number;
+  trend_value?: number;
 }
 
 export interface PlayerSummary {
