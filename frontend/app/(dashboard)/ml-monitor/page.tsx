@@ -12,6 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Brain,
   Activity,
@@ -35,8 +43,12 @@ import {
   BarChart3,
   AlertTriangle,
   Layers,
+  Square,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
+import { HypothesisBuilder } from "@/components/ml/hypothesis-builder";
 import Link from "next/link";
 import {
   LineChart,
@@ -105,6 +117,14 @@ interface MLMonitorData {
   llm_status: LLMStatus;
   model_versions: number;
   last_updated: string;
+}
+
+interface ContinuousStatus {
+  running: boolean;
+  pid: number | null;
+  started_at: string | null;
+  strategy: string | null;
+  uptime_seconds: number | null;
 }
 
 // Agent icon mapping
@@ -224,6 +244,12 @@ function MLMonitorContent() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
+  // New state for controls
+  const [continuousStatus, setContinuousStatus] = useState<ContinuousStatus | null>(null);
+  const [selectedStrategy, setSelectedStrategy] = useState("exploration");
+  const [selectedHypothesisId, setSelectedHypothesisId] = useState<string>("");
+  const [showHypothesisBuilder, setShowHypothesisBuilder] = useState(false);
+
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
   // Fetch ML monitor status
@@ -278,11 +304,118 @@ function MLMonitorContent() {
     }
   };
 
+  // Fetch continuous status
+  const fetchContinuousStatus = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/ml-monitor/continuous/status`);
+      if (response.ok) {
+        const result = await response.json();
+        setContinuousStatus(result);
+      }
+    } catch {
+      // Silently fail - not critical
+    }
+  };
+
+  // Toggle continuous ML loop
+  const toggleContinuous = async () => {
+    setActionLoading("continuous");
+    try {
+      if (continuousStatus?.running) {
+        await fetch(`${API_BASE}/api/v1/ml-monitor/continuous/stop`, {
+          method: "POST",
+        });
+      } else {
+        await fetch(`${API_BASE}/api/v1/ml-monitor/continuous/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            strategy: selectedStrategy,
+            interval_seconds: 3600,
+          }),
+        });
+      }
+      await fetchContinuousStatus();
+    } catch {
+      setError("Failed to toggle continuous mode");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Run a specific hypothesis
+  const runHypothesis = async () => {
+    if (!selectedHypothesisId) return;
+    setActionLoading("run-hypothesis");
+    try {
+      await fetch(`${API_BASE}/api/v1/ml-monitor/hypothesis/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hypothesis_id: selectedHypothesisId }),
+      });
+      setTimeout(fetchStatus, 2000);
+    } catch {
+      setError("Failed to run hypothesis");
+    } finally {
+      setActionLoading(null);
+      setSelectedHypothesisId("");
+    }
+  };
+
+  // Delete a hypothesis
+  const deleteHypothesis = async (hypothesisId: string) => {
+    setActionLoading(`delete-${hypothesisId}`);
+    try {
+      await fetch(`${API_BASE}/api/v1/ml-monitor/hypothesis/${hypothesisId}`, {
+        method: "DELETE",
+      });
+      await fetchStatus();
+    } catch {
+      setError("Failed to delete hypothesis");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Submit new hypothesis
+  const submitHypothesis = async (hypothesis: {
+    type: string;
+    description: string;
+    priority: number;
+    config: Record<string, unknown>;
+    tags: string[];
+  }) => {
+    const response = await fetch(`${API_BASE}/api/v1/ml-monitor/hypothesis/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(hypothesis),
+    });
+    if (!response.ok) {
+      throw new Error("Failed to submit hypothesis");
+    }
+    await fetchStatus();
+  };
+
+  // Format uptime
+  const formatUptime = (seconds: number | null) => {
+    if (!seconds) return "0s";
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hours > 0) return `${hours}h ${mins}m`;
+    if (mins > 0) return `${mins}m ${secs}s`;
+    return `${secs}s`;
+  };
+
   // Fetch on mount
   useEffect(() => {
     if (isElite) {
       fetchStatus();
-      const interval = setInterval(fetchStatus, 30000);
+      fetchContinuousStatus();
+      const interval = setInterval(() => {
+        fetchStatus();
+        fetchContinuousStatus();
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, [isElite, fetchStatus]);
@@ -797,102 +930,233 @@ function MLMonitorContent() {
 
         {/* Controls Tab */}
         <TabsContent value="controls" className="mt-6">
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Cycle Controls */}
+          <div className="space-y-6">
+            {/* System Control Row */}
+            <div className="grid md:grid-cols-3 gap-4">
+              {/* System Status */}
+              <Card variant="elevated" className={continuousStatus?.running ? "border-emerald-500/40 glow-green" : ""}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`h-10 w-10 rounded-xl ${continuousStatus?.running ? "bg-emerald-500/15" : "bg-secondary"} flex items-center justify-center`}>
+                        {continuousStatus?.running ? (
+                          <Activity className="h-5 w-5 text-emerald-500 animate-pulse" />
+                        ) : (
+                          <Square className="h-5 w-5 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold">ML System</p>
+                        <p className="text-xs text-muted-foreground">
+                          {continuousStatus?.running ? "Running" : "Stopped"}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={continuousStatus?.running || false}
+                      onCheckedChange={toggleContinuous}
+                      disabled={actionLoading === "continuous"}
+                    />
+                  </div>
+                  {continuousStatus?.running && (
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Strategy</span>
+                        <Badge variant="secondary">{continuousStatus.strategy}</Badge>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Uptime</span>
+                        <span className="font-mono">{formatUptime(continuousStatus.uptime_seconds)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">PID</span>
+                        <code className="text-xs bg-secondary px-2 py-0.5 rounded">{continuousStatus.pid}</code>
+                      </div>
+                    </div>
+                  )}
+                  {!continuousStatus?.running && (
+                    <div className="space-y-2">
+                      <label className="text-xs text-muted-foreground">Strategy when started:</label>
+                      <Select value={selectedStrategy} onValueChange={setSelectedStrategy}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="exploration">Exploration</SelectItem>
+                          <SelectItem value="exploitation">Exploitation</SelectItem>
+                          <SelectItem value="adversarial">Adversarial</SelectItem>
+                          <SelectItem value="ensemble">Ensemble</SelectItem>
+                          <SelectItem value="data-centric">Data-Centric</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Run Hypothesis */}
+              <Card variant="elevated">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 rounded-xl bg-purple-500/15 flex items-center justify-center">
+                      <Play className="h-5 w-5 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Run Hypothesis</p>
+                      <p className="text-xs text-muted-foreground">Pick from queue</p>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <Select value={selectedHypothesisId} onValueChange={setSelectedHypothesisId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select hypothesis..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {hypotheses.map((h) => (
+                          <SelectItem key={h.id} value={h.id}>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="text-2xs">{h.type.replace(/_/g, " ")}</Badge>
+                              <span className="truncate max-w-[150px]">{h.description.slice(0, 30)}...</span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      className="w-full"
+                      onClick={runHypothesis}
+                      disabled={!selectedHypothesisId || actionLoading === "run-hypothesis"}
+                    >
+                      {actionLoading === "run-hypothesis" ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Play className="h-4 w-4 mr-2" />
+                      )}
+                      Run Selected
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Create Hypothesis */}
+              <Card variant="elevated" className="border-amber-500/40">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500 to-yellow-400 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                      <Sparkles className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">New Hypothesis</p>
+                      <p className="text-xs text-muted-foreground">Create custom experiment</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="premium"
+                    className="w-full"
+                    onClick={() => setShowHypothesisBuilder(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Hypothesis
+                  </Button>
+                  <p className="text-2xs text-muted-foreground mt-3 text-center">
+                    Configure features, architecture, hyperparameters
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Quick Cycle Buttons */}
             <Card variant="elevated">
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-lg bg-amber-500/15 flex items-center justify-center">
                     <Zap className="h-4 w-4 text-amber-500" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Run Improvement Cycle</CardTitle>
-                    <CardDescription>Select a strategy and run the full pipeline</CardDescription>
+                    <CardTitle className="text-lg">Quick Improvement Cycles</CardTitle>
+                    <CardDescription>Run a single cycle with a specific strategy</CardDescription>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {[
-                  { name: "exploration", desc: "Discover diverse new approaches", icon: Lightbulb },
-                  { name: "exploitation", desc: "Focus on proven winning areas", icon: Target },
-                  { name: "adversarial", desc: "Target prediction failures", icon: AlertTriangle },
-                  { name: "ensemble", desc: "Optimize model composition", icon: Layers },
-                  { name: "data-centric", desc: "Focus on data quality", icon: Database },
-                ].map(({ name, desc, icon: StrategyIcon }) => {
-                  const isRunning = actionLoading === `cycle-${name}`;
-                  return (
-                    <Button
-                      key={name}
-                      variant="outline"
-                      className="w-full justify-start h-auto py-3"
-                      onClick={() => triggerCycle(name)}
-                      disabled={isRunning}
-                    >
-                      {isRunning ? (
-                        <Loader2 className="h-4 w-4 mr-3 animate-spin" />
-                      ) : (
-                        <StrategyIcon className="h-4 w-4 mr-3" />
-                      )}
-                      <div className="text-left">
-                        <p className="font-medium">{name.charAt(0).toUpperCase() + name.slice(1)}</p>
-                        <p className="text-xs text-muted-foreground">{desc}</p>
-                      </div>
-                    </Button>
-                  );
-                })}
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                  {[
+                    { name: "exploration", desc: "Explore new ideas", icon: Lightbulb, color: "purple" },
+                    { name: "exploitation", desc: "Refine winners", icon: Target, color: "emerald" },
+                    { name: "adversarial", desc: "Fix failures", icon: AlertTriangle, color: "rose" },
+                    { name: "ensemble", desc: "Optimize blend", icon: Layers, color: "sky" },
+                    { name: "data-centric", desc: "Improve data", icon: Database, color: "amber" },
+                  ].map(({ name, desc, icon: StrategyIcon, color }) => {
+                    const isRunning = actionLoading === `cycle-${name}`;
+                    const colorClasses: Record<string, string> = {
+                      purple: "hover:border-purple-500/40 hover:bg-purple-500/5",
+                      emerald: "hover:border-emerald-500/40 hover:bg-emerald-500/5",
+                      rose: "hover:border-rose-500/40 hover:bg-rose-500/5",
+                      sky: "hover:border-sky-500/40 hover:bg-sky-500/5",
+                      amber: "hover:border-amber-500/40 hover:bg-amber-500/5",
+                    };
+                    return (
+                      <Button
+                        key={name}
+                        variant="outline"
+                        className={`h-auto py-3 flex-col ${colorClasses[color]}`}
+                        onClick={() => triggerCycle(name)}
+                        disabled={isRunning}
+                      >
+                        {isRunning ? (
+                          <Loader2 className="h-5 w-5 mb-1 animate-spin" />
+                        ) : (
+                          <StrategyIcon className="h-5 w-5 mb-1" />
+                        )}
+                        <span className="font-medium text-xs">{name.charAt(0).toUpperCase() + name.slice(1)}</span>
+                        <span className="text-2xs text-muted-foreground">{desc}</span>
+                      </Button>
+                    );
+                  })}
+                </div>
               </CardContent>
             </Card>
 
             {/* LLM Status */}
             <Card variant="elevated">
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
                   <div className="h-8 w-8 rounded-lg bg-pink-500/15 flex items-center justify-center">
                     <Sparkles className="h-4 w-4 text-pink-500" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg">Local LLM</CardTitle>
+                    <CardTitle className="text-lg">Local LLM Connection</CardTitle>
                     <CardDescription>Creative reasoning at $0 cost</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  <div className={`flex items-center justify-between p-4 rounded-xl border ${
+                <div className="flex items-center gap-6">
+                  <div className={`flex items-center gap-3 px-4 py-3 rounded-xl border ${
                     llmStatus?.connected
                       ? "bg-emerald-500/10 border-emerald-500/30"
                       : "bg-rose-500/10 border-rose-500/30"
                   }`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`h-4 w-4 rounded-full ${llmStatus?.connected ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
-                      <span className="font-medium">
-                        {llmStatus?.connected ? "Connected" : "Disconnected"}
-                      </span>
-                    </div>
+                    <div className={`h-4 w-4 rounded-full ${llmStatus?.connected ? "bg-emerald-500 animate-pulse" : "bg-rose-500"}`} />
+                    <span className="font-medium">
+                      {llmStatus?.connected ? "Connected" : "Disconnected"}
+                    </span>
                     {llmStatus?.cost && (
                       <Badge variant="success">{llmStatus.cost}</Badge>
                     )}
                   </div>
-
                   {llmStatus?.url && (
-                    <div className="space-y-3 text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Endpoint</span>
+                    <div className="flex-1 flex items-center gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Endpoint:</span>{" "}
                         <code className="text-xs bg-secondary px-2 py-1 rounded">{llmStatus.url}</code>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">Model</span>
+                      <div>
+                        <span className="text-muted-foreground">Model:</span>{" "}
                         <code className="text-xs bg-secondary px-2 py-1 rounded">{llmStatus.model}</code>
                       </div>
                     </div>
                   )}
-
-                  <div className="pt-4 border-t border-border">
-                    <p className="text-sm text-muted-foreground leading-relaxed">
-                      The LLM Creative Agent brainstorms feature ideas, generates code,
-                      and analyzes prediction errors using your local LLM.
-                    </p>
-                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -907,6 +1171,14 @@ function MLMonitorContent() {
           Last updated: {new Date(data.last_updated).toLocaleString()}
         </p>
       )}
+
+      {/* Hypothesis Builder Modal */}
+      <HypothesisBuilder
+        open={showHypothesisBuilder}
+        onClose={() => setShowHypothesisBuilder(false)}
+        onSubmit={submitHypothesis}
+        apiBase={API_BASE}
+      />
     </div>
   );
 }
