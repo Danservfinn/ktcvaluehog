@@ -209,6 +209,13 @@ export interface ResearchProductionProfile {
   adot?: number;
 }
 
+export interface CareerProjection {
+  year: number;
+  age: number;
+  projected_ktc: number;
+  projected_ppg: number | null;
+}
+
 export interface ResearchDynastyOutlook {
   years_in_peak?: number;
   peak_window?: string;
@@ -217,6 +224,7 @@ export interface ResearchDynastyOutlook {
   projection_floor?: number;
   projection_ceiling?: number;
   projection_confidence?: number;
+  career_projections?: CareerProjection[];
 }
 
 export interface ResearchRiskAssessment {

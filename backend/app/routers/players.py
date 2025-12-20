@@ -14,6 +14,7 @@ from ..models.player import (
     ResearchDynastyOutlook,
     ResearchRiskAssessment,
     ResearchAthleticProfile,
+    CareerProjection,
     Position,
     Signal,
     AthleticProfile,
@@ -410,6 +411,66 @@ def _generate_one_liner(age: int, position: str, ktc_value: int, aging_pos: str)
         return "Declining asset; likely depreciating value"
 
 
+# Career end ages by position (when value typically drops to minimal)
+CAREER_END_AGES = {
+    "QB": 40,
+    "RB": 30,
+    "WR": 34,
+    "TE": 35,
+}
+
+
+def _project_ppg(current_ppg: float, age: int, position: str, years: int) -> float:
+    """Project fantasy PPG for a future year based on aging curves."""
+    if not current_ppg:
+        return 0.0
+
+    peak = POSITION_PEAKS.get(position, POSITION_PEAKS["WR"])
+    ppg = current_ppg
+
+    for y in range(years):
+        player_age = age + y + 1
+        if player_age < peak["start"]:
+            # Pre-peak: slight improvement
+            ppg *= 1.02
+        elif player_age <= peak["end"]:
+            # Peak: stable
+            ppg *= 0.99
+        else:
+            # Post-peak: decline accelerates
+            years_past = player_age - peak["end"]
+            decline = 0.08 + (years_past * 0.02)  # 8% + 2% per year past peak
+            ppg *= (1 - decline)
+
+    return max(round(ppg, 1), 0)
+
+
+def _calculate_career_projections(
+    age: int, position: str, ktc: int, current_ppg: float | None
+) -> list[CareerProjection]:
+    """Calculate year-by-year projections for remaining career."""
+    max_age = CAREER_END_AGES.get(position, 34)
+    years_remaining = max(0, max_age - age)
+
+    # Cap at 10 years for chart readability
+    max_years = min(years_remaining, 10)
+
+    projections = []
+    for year in range(1, max_years + 1):
+        proj_age = age + year
+        proj_ktc = _calculate_projected_value(ktc, age, position, year)
+        proj_ppg = _project_ppg(current_ppg, age, position, year) if current_ppg else None
+
+        projections.append(CareerProjection(
+            year=year,
+            age=proj_age,
+            projected_ktc=proj_ktc,
+            projected_ppg=proj_ppg
+        ))
+
+    return projections
+
+
 @router.get("/{player_id}/research", response_model=APIResponse[PlayerResearch])
 async def get_player_research(player_id: str):
     """
@@ -586,6 +647,9 @@ async def get_player_research(player_id: str):
         adot=round(row.get("adot"), 1) if row.get("adot") else None,
     )
 
+    # Calculate career projections for chart
+    career_projections = _calculate_career_projections(age, pos, ktc, season_ppg)
+
     dynasty = ResearchDynastyOutlook(
         years_in_peak=_calculate_years_in_peak(age, pos),
         peak_window=_get_peak_window(pos),
@@ -594,6 +658,7 @@ async def get_player_research(player_id: str):
         projection_floor=row.get("proj_floor"),
         projection_ceiling=row.get("proj_ceiling"),
         projection_confidence=row.get("proj_confidence"),
+        career_projections=career_projections if career_projections else None,
     )
 
     injury_risk_raw = row.get("injury_risk")

@@ -24,6 +24,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { api, PlayerResearch } from "@/lib/api";
+import { CareerProjectionChart } from "@/components/charts/career-projection-chart";
 
 interface PlayerResearchModalProps {
   playerId: string | null;
@@ -284,6 +285,17 @@ export function PlayerResearchModal({
                       {player.value.positional_rank && (
                         <span>Position Rank: <strong className="text-foreground">{player.position}{player.value.positional_rank}</strong></span>
                       )}
+                    </div>
+                  )}
+
+                  {/* Career Trajectory Chart */}
+                  {player.dynasty.career_projections && player.dynasty.career_projections.length > 0 && (
+                    <div className="mt-4">
+                      <p className="text-xs font-medium text-muted-foreground mb-2">Career Trajectory</p>
+                      <CareerProjectionChart
+                        projections={player.dynasty.career_projections}
+                        position={player.position}
+                      />
                     </div>
                   )}
                 </div>

@@ -195,6 +195,14 @@ class ResearchProductionProfile(BaseModel):
     adot: float | None = None
 
 
+class CareerProjection(BaseModel):
+    """Single year projection for career trajectory chart."""
+    year: int  # Years from now (1, 2, 3...)
+    age: int  # Player age at that year
+    projected_ktc: int  # Projected KTC value
+    projected_ppg: float | None = None  # Projected fantasy PPG
+
+
 class ResearchDynastyOutlook(BaseModel):
     """Dynasty outlook for player research modal."""
     years_in_peak: int | None = None
@@ -204,6 +212,7 @@ class ResearchDynastyOutlook(BaseModel):
     projection_floor: float | None = None
     projection_ceiling: float | None = None
     projection_confidence: float | None = None
+    career_projections: list[CareerProjection] | None = None  # Year-by-year career trajectory
 
 
 class ResearchRiskAssessment(BaseModel):
