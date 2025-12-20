@@ -77,8 +77,8 @@ def load_json_file(path: Path) -> Any:
 def check_llm_connection() -> Dict[str, Any]:
     """Check if local LLM is available."""
     try:
-        import requests
-        response = requests.get("http://172.16.108.209:1234/v1/models", timeout=2)
+        import httpx
+        response = httpx.get("http://172.16.108.209:1234/v1/models", timeout=2.0)
         if response.status_code == 200:
             return {
                 "connected": True,
