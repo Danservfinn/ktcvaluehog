@@ -457,6 +457,210 @@ With 28 datasets and 1,500+ columns available, we must be strategic about what g
 })
 ```
 
+### 11. GameWeather (NEW - December 2024)
+
+```cypher
+(:GameWeather {
+    // === IDENTITY ===
+    game_id: STRING,              // Primary key
+    season: INTEGER,
+
+    // === LOCATION ===
+    stadium: STRING,
+    home_team: STRING,
+    roof_type: STRING,            // dome, outdoor, retractable
+
+    // === CONDITIONS ===
+    temperature: FLOAT,           // Fahrenheit
+    humidity: FLOAT,              // Percentage
+    wind_speed: FLOAT,            // MPH
+    wind_direction: FLOAT,        // Degrees
+    precipitation: FLOAT,         // Inches
+    condition: STRING,            // clear, rain, snow, etc.
+
+    // === DERIVED FLAGS ===
+    is_dome: INTEGER,             // 1 = dome game
+    is_cold: INTEGER,             // 1 = temp < 40F
+    is_windy: INTEGER,            // 1 = wind > 15mph
+    has_precipitation: INTEGER,   // 1 = any precipitation
+
+    loaded_at: DATETIME
+})
+```
+
+### 12. InjuryReport (NEW - December 2024)
+
+```cypher
+(:InjuryReport {
+    // === IDENTITY ===
+    player_id: STRING,            // GSIS ID
+    season: INTEGER,
+    week: INTEGER,
+
+    // === PLAYER INFO ===
+    player_name: STRING,
+    team: STRING,
+    position: STRING,
+
+    // === INJURY DETAILS ===
+    primary_injury: STRING,       // hamstring, knee, etc.
+    secondary_injury: STRING,
+    injury_category: STRING,      // soft_tissue_leg, knee, concussion, etc.
+
+    // === STATUS ===
+    report_status: STRING,        // out, doubtful, questionable, probable
+    practice_status: STRING,
+    severity: STRING,             // Derived from report_status
+    game_type: STRING,
+
+    date_modified: STRING,
+    loaded_at: DATETIME
+})
+```
+
+### 13. PlayerInjuryProfile (NEW - December 2024)
+
+```cypher
+(:PlayerInjuryProfile {
+    // === IDENTITY ===
+    player_id: STRING,            // Primary key - GSIS ID
+    player_name: STRING,
+    position: STRING,
+
+    // === INJURY COUNTS BY CATEGORY ===
+    soft_tissue_leg_count: INTEGER,
+    soft_tissue_upper_count: INTEGER,
+    knee_injury_count: INTEGER,
+    ankle_foot_count: INTEGER,
+    concussion_count: INTEGER,
+    back_neck_count: INTEGER,
+
+    // === SEVERITY METRICS ===
+    games_listed_out: INTEGER,
+    games_questionable: INTEGER,
+    total_injury_reports: INTEGER,
+
+    // === RISK SCORES (low/medium/high) ===
+    soft_tissue_risk: STRING,
+    structural_risk: STRING,
+    concussion_risk: STRING,
+    overall_injury_risk: STRING,
+
+    // === TEMPORAL ===
+    first_injury_season: INTEGER,
+    last_injury_season: INTEGER,
+    updated_at: DATETIME
+})
+```
+
+### 14. DepthChartEntry (NEW - December 2024)
+
+```cypher
+(:DepthChartEntry {
+    // === IDENTITY (Composite Key) ===
+    player_id: STRING,            // GSIS ID
+    team: STRING,
+    season: INTEGER,
+    week: INTEGER,
+    position: STRING,
+
+    // === PLAYER INFO ===
+    player_name: STRING,
+    jersey_number: INTEGER,
+
+    // === DEPTH CHART POSITION ===
+    depth_team: INTEGER,          // 1 = starter, 2 = backup, etc.
+    formation: STRING,
+    role: STRING,                 // starter, backup, third_string, depth
+    formation_role: STRING,       // slot, outside, inline_te, etc.
+
+    loaded_at: DATETIME
+})
+```
+
+### 15. PlayerRoleProfile (NEW - December 2024)
+
+```cypher
+(:PlayerRoleProfile {
+    // === IDENTITY ===
+    player_id: STRING,            // Primary key - GSIS ID
+    player_name: STRING,
+    position: STRING,
+
+    // === ROLE METRICS ===
+    starter_weeks: INTEGER,
+    backup_weeks: INTEGER,
+    total_depth_chart_weeks: INTEGER,
+    starter_rate: FLOAT,          // 0-1 scale
+
+    // === WR ALIGNMENT (WR only) ===
+    slot_weeks: INTEGER,
+    outside_weeks: INTEGER,
+    alignment: STRING,            // slot_primary, outside_primary, versatile
+
+    // === CLASSIFICATION ===
+    primary_role: STRING,         // established_starter, starter_backup_mix, etc.
+
+    // === TEMPORAL ===
+    first_season: INTEGER,
+    last_season: INTEGER,
+    updated_at: DATETIME
+})
+```
+
+### 16. KTCTrend (NEW - December 2024)
+
+```cypher
+(:KTCTrend {
+    // === IDENTITY ===
+    ktc_id: STRING,               // Primary key
+    player_name: STRING,
+    position: STRING,
+    team: STRING,
+
+    // === CURRENT STATE ===
+    current_ktc: INTEGER,
+    first_ktc: INTEGER,
+
+    // === VALUE CHANGES ===
+    total_change: INTEGER,
+    total_change_pct: FLOAT,
+    change_30d: INTEGER,
+    change_30d_pct: FLOAT,
+    change_7d: INTEGER,
+    change_7d_pct: FLOAT,
+
+    // === VOLATILITY ===
+    ktc_std: FLOAT,
+    ktc_min: INTEGER,
+    ktc_max: INTEGER,
+    ktc_range: INTEGER,
+
+    // === TREND ANALYSIS ===
+    trend_slope: FLOAT,
+    trend_direction: STRING,      // rising, falling, stable
+    momentum: FLOAT,
+    momentum_pct: FLOAT,
+
+    // === PEAK/TROUGH ANALYSIS ===
+    days_since_peak: INTEGER,
+    days_since_trough: INTEGER,
+    pct_off_peak: FLOAT,
+    pct_above_trough: FLOAT,
+
+    // === VALUE SIGNAL ===
+    value_signal: STRING,         // strong_buy, buy, hold, sell, strong_sell
+    signal_updated_at: DATETIME,
+
+    // === METADATA ===
+    first_date: STRING,
+    latest_date: STRING,
+    days_tracked: INTEGER,
+    snapshots_count: INTEGER,
+    updated_at: DATETIME
+})
+```
+
 ---
 
 ## Relationships

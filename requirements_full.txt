@@ -70,7 +70,10 @@ polars>=0.20.0
 pyarrow>=14.0.0
 
 # Legacy option (deprecated but still works):
-# nfl-data-py>=0.3.3
+nfl-data-py>=0.3.3
+
+# College Football Data API (for rookie scouting)
+cfbd>=4.0.0
 
 # =============================================================================
 # WEB SCRAPING (for KTC data)

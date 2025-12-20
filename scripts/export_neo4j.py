@@ -208,13 +208,21 @@ class Neo4jExporter:
             elif isinstance(value, (int, float)):
                 formatted.append(f"{key}: {value}")
             elif isinstance(value, str):
-                # Escape quotes and newlines
-                escaped = value.replace('\\', '\\\\').replace("'", "\\'").replace('\n', '\\n')
+                # Escape quotes, newlines, and normalize apostrophe variants
+                escaped = value.replace('\\', '\\\\')
+                # Replace curly/smart apostrophes with straight apostrophe
+                escaped = escaped.replace(''', "'").replace(''', "'")
+                # Then escape all apostrophes for Cypher
+                escaped = escaped.replace("'", "\\'").replace('\n', '\\n')
                 formatted.append(f"{key}: '{escaped}'")
             elif isinstance(value, list):
                 # Handle arrays
                 if all(isinstance(v, str) for v in value):
-                    arr = ', '.join([f"'{v}'" for v in value])
+                    escaped_arr = []
+                    for v in value:
+                        esc = v.replace('\\', '\\\\').replace(''', "'").replace(''', "'").replace("'", "\\'")
+                        escaped_arr.append(f"'{esc}'")
+                    arr = ', '.join(escaped_arr)
                     formatted.append(f"{key}: [{arr}]")
                 else:
                     arr = ', '.join([str(v) for v in value])
@@ -275,18 +283,61 @@ class Neo4jExporter:
                     props = self._format_properties(dict(node))
 
                     # Use identifying property for MERGE
-                    id_props = ['game_id', 'sleeper_id', 'gsis_id', 'id', 'player_id', 'team_abbr']
+                    # For historical/time-series data, use composite keys
                     merged = False
 
-                    for id_prop in id_props:
-                        if id_prop in node and node[id_prop]:
-                            val = node[id_prop]
-                            if isinstance(val, str):
-                                label_statements.append(f"MERGE (n:{label} {{{id_prop}: '{val}'}})\nSET n += {props};")
-                            else:
-                                label_statements.append(f"MERGE (n:{label} {{{id_prop}: {val}}})\nSET n += {props};")
+                    # Define composite key patterns for different node types
+                    # Key format: list of property names that together uniquely identify a node
+                    composite_keys = {
+                        'HistoricalSnapCount': ['player_id', 'season', 'week'],
+                        'HistoricalWeeklyStats': ['player_id', 'season', 'week'],
+                        'HistoricalSeasonStats': ['player_id', 'season'],
+                        'HistoricalNGS': ['player_id', 'season', 'week'],
+                        'SeasonStats': ['player_id', 'season'],
+                        'WeeklyStats': ['player_id', 'season', 'week'],
+                        'SnapCount': ['player_id', 'season', 'week'],
+                        'NGSStats': ['player_id', 'season', 'week'],
+                        'KTCSnapshot': ['ktc_id', 'date'],  # Fixed: ktc_id + date
+                        'InjuryReport': ['player_id', 'season', 'week'],
+                        'DepthChartEntry': ['player_id', 'season', 'week'],
+                        'CareerStage': ['stage_id'],  # Fixed: uses stage_id
+                        'PlayByPlayAggregates': ['player_id', 'season'],
+                        'DraftPick': ['player_id', 'season'],  # Draft pick per player per year
+                    }
+
+                    # Helper to escape string for Cypher
+                    def escape_cypher_string(s):
+                        return s.replace('\\', '\\\\').replace(''', "'").replace(''', "'").replace("'", "\\'")
+
+                    # Check for composite key
+                    if label in composite_keys:
+                        key_props = composite_keys[label]
+                        if all(k in node and node[k] is not None for k in key_props):
+                            key_parts = []
+                            for k in key_props:
+                                val = node[k]
+                                if isinstance(val, str):
+                                    escaped_val = escape_cypher_string(val)
+                                    key_parts.append(f"{k}: '{escaped_val}'")
+                                else:
+                                    key_parts.append(f"{k}: {val}")
+                            key_str = ', '.join(key_parts)
+                            label_statements.append(f"MERGE (n:{label} {{{key_str}}})\nSET n += {props};")
                             merged = True
-                            break
+
+                    # Fallback to single-property keys
+                    if not merged:
+                        id_props = ['game_id', 'sleeper_id', 'gsis_id', 'id', 'player_id', 'team_abbr', 'scheme_id', 'ktc_id']
+                        for id_prop in id_props:
+                            if id_prop in node and node[id_prop]:
+                                val = node[id_prop]
+                                if isinstance(val, str):
+                                    escaped_val = escape_cypher_string(val)
+                                    label_statements.append(f"MERGE (n:{label} {{{id_prop}: '{escaped_val}'}})\nSET n += {props};")
+                                else:
+                                    label_statements.append(f"MERGE (n:{label} {{{id_prop}: {val}}})\nSET n += {props};")
+                                merged = True
+                                break
 
                     if not merged:
                         # Add temp ID for relationship matching

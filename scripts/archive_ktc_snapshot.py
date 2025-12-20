@@ -88,13 +88,15 @@ def main():
     # Create historical directory
     HISTORICAL_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Get current date
-    today = datetime.now().strftime('%Y%m%d')
-    snapshot_file = HISTORICAL_DIR / f"ktc_{today}.csv"
+    # Get current date and time period (AM/PM for twice daily)
+    now = datetime.now()
+    today = now.strftime('%Y%m%d')
+    period = 'AM' if now.hour < 12 else 'PM'
+    snapshot_file = HISTORICAL_DIR / f"ktc_{today}_{period}.csv"
 
-    # Skip if already archived today
+    # Skip if already archived for this period
     if snapshot_file.exists():
-        print(f"Snapshot already exists for {today}, skipping")
+        print(f"Snapshot already exists for {today} {period}, skipping")
         return
 
     # Try JSON first, then CSV
@@ -108,7 +110,8 @@ def main():
 
     # Add snapshot metadata
     df['snapshot_date'] = today
-    df['snapshot_ts'] = datetime.now().isoformat()
+    df['snapshot_period'] = period
+    df['snapshot_ts'] = now.isoformat()
 
     # Save snapshot
     df.to_csv(snapshot_file, index=False)
@@ -119,7 +122,11 @@ def main():
     if consolidated.exists():
         existing = pd.read_csv(consolidated)
         combined = pd.concat([existing, df], ignore_index=True)
-        combined = combined.drop_duplicates(subset=['player_id', 'snapshot_date'], keep='last')
+        # Dedupe by player_id + snapshot_date + period for twice-daily
+        combined = combined.drop_duplicates(
+            subset=['player_id', 'snapshot_date', 'snapshot_period'],
+            keep='last'
+        )
     else:
         combined = df
 
@@ -127,9 +134,10 @@ def main():
     print(f"Consolidated file now has {len(combined)} total records")
 
     # Print stats
-    snapshot_count = len(list(HISTORICAL_DIR.glob("ktc_*.csv"))) - 1  # exclude consolidated
-    print(f"Total snapshots collected: {snapshot_count}")
-    if snapshot_count >= 30:
+    snapshot_files = [f for f in HISTORICAL_DIR.glob("ktc_*.csv") if 'all_snapshots' not in f.name]
+    snapshot_count = len(snapshot_files)
+    print(f"Total snapshots collected: {snapshot_count} (twice-daily enabled)")
+    if snapshot_count >= 60:  # 30 days x 2 snapshots
         print("You have enough data for time-series ML training!")
 
 

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.thoth.weekly-data</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Frameworks/Python.framework/Versions/3.13/bin/python3</string>
+        <string>/Users/kurultai/ktcvaluehog/scripts/weekly_data_job.py</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/kurultai/ktcvaluehog</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/Library/Frameworks/Python.framework/Versions/3.13/bin</string>
+    </dict>
+
+    <!-- Run Tuesday at 4:00 AM (after Monday Night Football) -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Weekday</key>
+        <integer>2</integer>
+        <key>Hour</key>
+        <integer>4</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- Log output -->
+    <key>StandardOutPath</key>
+    <string>/Users/kurultai/ktcvaluehog/logs/weekly_data_stdout.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/kurultai/ktcvaluehog/logs/weekly_data_stderr.log</string>
+
+    <!-- Don't restart on failure -->
+    <key>KeepAlive</key>
+    <false/>
+
+    <!-- Don't run immediately on load -->
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

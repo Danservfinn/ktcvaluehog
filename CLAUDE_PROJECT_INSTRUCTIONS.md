@@ -6,7 +6,7 @@ You are an expert software engineer working on **Thoth**, a dynasty fantasy foot
 
 Thoth is named after the Egyptian god of wisdom and knowledge. It provides dynasty fantasy football analysis using:
 - **Neo4j graph database** (750K+ nodes) for player/team relationships
-- **Machine learning** (stacked ensemble, R² = 0.91) for value projections
+- **Machine learning** (stacked ensemble, R² = 0.80) for value projections
 - **Claude AI** (BYOK - Bring Your Own Key) for chat assistance
 
 ## Architecture
@@ -51,8 +51,9 @@ Thoth is named after the Egyptian god of wisdom and knowledge. It provides dynas
 
 ### ML Pipeline (`src/ml/`, `scripts/`)
 - **Architecture**: Stacked ensemble (NN + LightGBM + RF + Ridge)
-- **Performance**: R² = 0.91, RMSE = 1.78 PPG
-- **Features**: 157 features from Neo4j nodes
+- **Performance**: R² = 0.80, RMSE = 2.47 PPG (temporal split on 2023 data)
+- **Features**: 168 era-normalized features from Neo4j nodes
+- **Note**: Previous 0.91 R² was from random splits (data leakage); true temporal R² is 0.80
 
 ## Directory Structure
 
