@@ -292,17 +292,22 @@ export function PlayerResearchModal({
               {/* Production Metrics - Default Open */}
               <CollapsibleSection title="Production Metrics" icon={Activity} defaultOpen>
                 <div className="space-y-4">
-                  {/* Core Stats Row */}
-                  <div className="grid grid-cols-4 gap-2">
-                    <StatBox label="PPG (2024)" value={player.production.season_ppg} highlight />
-                    <StatBox label="Games" value={player.production.games_played} />
-                    <StatBox label="Total Pts" value={player.production.total_points} />
-                    {player.position === "RB" ? (
-                      <StatBox label="Touch%" value={player.production.touch_share} unit="%" />
-                    ) : (
-                      <StatBox label="Tgt%" value={player.production.target_share} unit="%" />
-                    )}
-                  </div>
+                  {/* Core Stats Row - show if any production data exists */}
+                  {(player.production.season_ppg != null || player.production.games_played != null ||
+                    player.production.targets != null || player.production.carries != null) ? (
+                    <div className="grid grid-cols-4 gap-2">
+                      <StatBox label="PPG (2023)" value={player.production.season_ppg} highlight />
+                      <StatBox label="Games" value={player.production.games_played} />
+                      <StatBox label="Total Pts" value={player.production.total_points} />
+                      {player.position === "RB" ? (
+                        <StatBox label="Touch%" value={player.production.touch_share} unit="%" />
+                      ) : (
+                        <StatBox label="Tgt%" value={player.production.target_share} unit="%" />
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">No production data available for this player.</p>
+                  )}
 
                   {/* Receiving Stats (for WR/TE/RB) */}
                   {(player.production.targets || player.production.receptions) && (
@@ -386,16 +391,27 @@ export function PlayerResearchModal({
               {/* Risk Assessment */}
               <CollapsibleSection title="Risk Assessment" icon={Shield}>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <RiskBadge level={player.risk.injury_risk_level} />
-                    <DepthBadge security={player.risk.depth_chart_security} />
-                  </div>
+                  {/* Only show badges if we have meaningful data */}
+                  {(player.risk.injury_burden_score != null || player.risk.games_missed_3yr != null || player.risk.starter_rate != null) ? (
+                    <>
+                      <div className="flex items-center gap-4 flex-wrap">
+                        {(player.risk.injury_burden_score != null || player.risk.games_missed_3yr != null) && (
+                          <RiskBadge level={player.risk.injury_risk_level} />
+                        )}
+                        {player.risk.starter_rate != null && (
+                          <DepthBadge security={player.risk.depth_chart_security} />
+                        )}
+                      </div>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <StatBox label="Injury Burden" value={player.risk.injury_burden_score} />
-                    <StatBox label="Games Missed (3yr)" value={player.risk.games_missed_3yr} />
-                    <StatBox label="Starter Rate" value={player.risk.starter_rate} unit="%" />
-                  </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <StatBox label="Injury Burden" value={player.risk.injury_burden_score} />
+                        <StatBox label="Games Missed (3yr)" value={player.risk.games_missed_3yr} />
+                        <StatBox label="Starter Rate" value={player.risk.starter_rate} unit="%" />
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">No risk data available for this player.</p>
+                  )}
                 </div>
               </CollapsibleSection>
 

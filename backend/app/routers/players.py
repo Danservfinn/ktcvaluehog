@@ -437,13 +437,13 @@ async def get_player_research(player_id: str):
         // Role profile
         OPTIONAL MATCH (p)-[:HAS_ROLE]->(rp:PlayerRoleProfile)
 
-        // PBP aggregates (2024 season)
-        OPTIONAL MATCH (p)-[:HAS_PBP_STATS]->(pbp:PlayByPlayAggregates)
-        WHERE pbp.season = 2024
+        // PBP aggregates (latest season)
+        OPTIONAL MATCH (pbp:PlayByPlayAggregates)
+        WHERE pbp.player_id = p.gsis_id AND pbp.season >= 2023
 
-        // Season stats (2024)
-        OPTIONAL MATCH (p)-[:HAD_SEASON]->(ss:HistoricalSeasonStats)
-        WHERE ss.season = 2024
+        // Season stats (latest available)
+        OPTIONAL MATCH (ss:HistoricalSeasonStats)
+        WHERE ss.player_id = p.gsis_id AND ss.season >= 2023
 
         // ML projections
         OPTIONAL MATCH (p)-[:HAS_PROJECTION]->(proj:PlayerProjection)
@@ -491,8 +491,8 @@ async def get_player_research(player_id: str):
             pbp.rz_target_share as rz_target_share,
             pbp.rz_carry_share as rz_carry_share,
 
-            // Season Stats
-            ss.fantasy_points_ppr as season_pts,
+            // Season Stats (using ppg_ppr * games for total points)
+            ss.ppg_ppr as season_ppg_raw,
             ss.games as games_played,
             ss.targets as targets,
             ss.receptions as receptions,
@@ -537,9 +537,10 @@ async def get_player_research(player_id: str):
     ktc = row.get("ktc_value") or 0
 
     # Calculate derived values
-    season_pts = row.get("season_pts")
+    season_ppg_raw = row.get("season_ppg_raw")
     games = row.get("games_played")
-    season_ppg = round(season_pts / games, 1) if season_pts and games and games > 0 else None
+    season_ppg = round(season_ppg_raw, 1) if season_ppg_raw else None
+    season_pts = round(season_ppg_raw * games, 1) if season_ppg_raw and games else None
 
     aging_pos = _get_aging_curve_position(age, pos)
 
