@@ -2142,6 +2142,289 @@ class ExpandedDatasetBuilder:
         return df
 
     # =========================================================================
+    # PHASE 2: ADVANCED FEATURE ENGINEERING (R² IMPROVEMENT PLAN)
+    # =========================================================================
+
+    def add_schedule_strength_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Phase 2.1: Add defense/schedule strength features.
+
+        Queries Game nodes for:
+        - Schedule strength (avg opponent Elo)
+        - Favorable matchup percentage
+        - Tough matchup percentage
+
+        Expected R² gain: +0.01-0.02
+        """
+        logger.info("Phase 2.1: Adding schedule strength features...")
+
+        # Get unique player-team-season combinations
+        player_seasons = df[['player_id', 'player_name', 'team', 'season']].drop_duplicates()
+
+        schedule_data = []
+
+        for _, row in player_seasons.iterrows():
+            team = row['team']
+            season = row['season']
+
+            if pd.isna(team) or pd.isna(season):
+                continue
+
+            # Query games for this team-season
+            query = """
+            MATCH (g:Game)
+            WHERE g.season = $season
+              AND (g.home_team = $team OR g.away_team = $team)
+            WITH g,
+                 CASE WHEN g.home_team = $team THEN g.away_elo ELSE g.home_elo END as opponent_elo
+            WHERE opponent_elo IS NOT NULL
+            RETURN AVG(opponent_elo) as avg_opponent_elo,
+                   AVG(CASE WHEN opponent_elo < 1500 THEN 1.0 ELSE 0.0 END) as favorable_matchup_pct,
+                   AVG(CASE WHEN opponent_elo > 1550 THEN 1.0 ELSE 0.0 END) as tough_matchup_pct,
+                   COUNT(*) as games_with_elo
+            """
+
+            records = self._run_query(query, {'team': team, 'season': int(season)})
+
+            if records and records[0].get('games_with_elo', 0) > 0:
+                schedule_data.append({
+                    'player_id': row['player_id'],
+                    'season': season,
+                    'avg_opponent_elo': records[0].get('avg_opponent_elo'),
+                    'favorable_matchup_pct': records[0].get('favorable_matchup_pct', 0) * 100,
+                    'tough_matchup_pct': records[0].get('tough_matchup_pct', 0) * 100,
+                    'schedule_strength_score': (records[0].get('avg_opponent_elo', 1500) - 1500) / 10
+                })
+
+        if schedule_data:
+            schedule_df = pd.DataFrame(schedule_data)
+            df = df.merge(
+                schedule_df[['player_id', 'season', 'avg_opponent_elo', 'favorable_matchup_pct',
+                            'tough_matchup_pct', 'schedule_strength_score']],
+                on=['player_id', 'season'],
+                how='left'
+            )
+            matched = df['avg_opponent_elo'].notna().sum()
+            logger.info(f"  Added schedule strength for {matched:,} player-seasons")
+        else:
+            logger.warning("  No schedule data found")
+            df['avg_opponent_elo'] = np.nan
+            df['favorable_matchup_pct'] = np.nan
+            df['tough_matchup_pct'] = np.nan
+            df['schedule_strength_score'] = np.nan
+
+        return df
+
+    def add_qb_stability_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Phase 2.2: Add QB stability indicator (leakage-safe).
+
+        Compares team's starting QB in season-1 vs season-2 (PRIOR season only).
+        Only uses data knowable at prediction time.
+
+        Features:
+        - qb_stable: Boolean indicator if QB remained same
+        - qb_quality_delta: Change in QB's PPG performance
+
+        Expected R² gain: +0.01-0.02
+        """
+        logger.info("Phase 2.2: Adding QB stability features...")
+
+        # For non-QBs only
+        non_qb_df = df[df['position'] != 'QB'].copy()
+
+        if len(non_qb_df) == 0:
+            df['qb_stable'] = np.nan
+            df['qb_quality_delta'] = np.nan
+            return df
+
+        qb_stability_data = []
+
+        # Get unique team-season pairs for non-QBs
+        team_seasons = non_qb_df[['team', 'season']].drop_duplicates()
+
+        for _, row in team_seasons.iterrows():
+            team = row['team']
+            season = row['season']
+
+            if pd.isna(team) or pd.isna(season):
+                continue
+
+            # Get QB info for current season and prior season
+            # Use HistoricalSeasonStats to find who had most pass attempts
+            query = """
+            MATCH (ss:HistoricalSeasonStats)
+            WHERE ss.team = $team
+              AND ss.position = 'QB'
+              AND ss.season IN [$season, $prior_season]
+              AND ss.passing_yards IS NOT NULL
+            WITH ss.season as season,
+                 ss.player_id as qb_id,
+                 ss.player_name as qb_name,
+                 ss.ppg_ppr as qb_ppg,
+                 ss.passing_yards as pass_yds
+            ORDER BY ss.season, ss.passing_yards DESC
+            WITH season,
+                 HEAD(COLLECT({id: qb_id, name: qb_name, ppg: qb_ppg})) as starting_qb
+            RETURN season, starting_qb.id as qb_id, starting_qb.name as qb_name, starting_qb.ppg as qb_ppg
+            """
+
+            records = self._run_query(query, {
+                'team': team,
+                'season': int(season),
+                'prior_season': int(season) - 1
+            })
+
+            if len(records) >= 2:
+                # Find current and prior season QBs
+                current_qb = next((r for r in records if r['season'] == season), None)
+                prior_qb = next((r for r in records if r['season'] == season - 1), None)
+
+                if current_qb and prior_qb:
+                    qb_stable = current_qb['qb_id'] == prior_qb['qb_id']
+                    qb_quality_delta = (current_qb.get('qb_ppg', 0) or 0) - (prior_qb.get('qb_ppg', 0) or 0)
+
+                    qb_stability_data.append({
+                        'team': team,
+                        'season': season,
+                        'qb_stable': 1 if qb_stable else 0,
+                        'qb_quality_delta': qb_quality_delta
+                    })
+
+        if qb_stability_data:
+            qb_df = pd.DataFrame(qb_stability_data)
+            df = df.merge(
+                qb_df[['team', 'season', 'qb_stable', 'qb_quality_delta']],
+                on=['team', 'season'],
+                how='left'
+            )
+            matched = df['qb_stable'].notna().sum()
+            logger.info(f"  Added QB stability for {matched:,} player-seasons")
+        else:
+            logger.warning("  No QB stability data found")
+            df['qb_stable'] = np.nan
+            df['qb_quality_delta'] = np.nan
+
+        return df
+
+    def add_competition_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Phase 2.3: Add competition metrics.
+
+        Uses DepthChartEntry and historical stats to calculate:
+        - RB committee score (Herfindahl index)
+        - WR target concentration
+        - Alpha WR indicator (is player WR1?)
+
+        Expected R² gain: +0.01-0.02
+        """
+        logger.info("Phase 2.3: Adding competition features...")
+
+        competition_data = []
+
+        # Get unique player-team-season combinations
+        player_seasons = df[['player_id', 'player_name', 'team', 'season', 'position']].drop_duplicates()
+
+        for _, row in player_seasons.iterrows():
+            team = row['team']
+            season = row['season']
+            position = row['position']
+            player_id = row['player_id']
+
+            if pd.isna(team) or pd.isna(season) or pd.isna(position):
+                continue
+
+            # RB committee score (for RBs only)
+            if position == 'RB':
+                rb_query = """
+                MATCH (ss:HistoricalSeasonStats)
+                WHERE ss.team = $team
+                  AND ss.season = $season
+                  AND ss.position = 'RB'
+                  AND ss.carries IS NOT NULL
+                WITH ss.player_id as rb_id,
+                     ss.carries as carries,
+                     SUM(ss.carries) OVER () as total_carries
+                WHERE total_carries > 0
+                WITH rb_id, carries, total_carries,
+                     (carries * 1.0 / total_carries) as share
+                RETURN COLLECT({id: rb_id, share: share}) as rb_shares,
+                       SUM(share * share) as herfindahl_index
+                """
+
+                records = self._run_query(rb_query, {'team': team, 'season': int(season)})
+
+                if records and records[0].get('herfindahl_index'):
+                    # Lower Herfindahl = more committee
+                    # Invert to make higher = more committee
+                    herfindahl = records[0]['herfindahl_index']
+                    rb_committee_score = (1 - herfindahl) * 100
+
+                    competition_data.append({
+                        'player_id': player_id,
+                        'season': season,
+                        'rb_committee_score': rb_committee_score
+                    })
+
+            # WR target concentration (for WRs only)
+            elif position == 'WR':
+                wr_query = """
+                MATCH (ss:HistoricalSeasonStats)
+                WHERE ss.team = $team
+                  AND ss.season = $season
+                  AND ss.position = 'WR'
+                  AND ss.targets IS NOT NULL
+                WITH ss.player_id as wr_id,
+                     ss.player_name as wr_name,
+                     ss.targets as targets,
+                     SUM(ss.targets) OVER () as total_targets
+                WHERE total_targets > 0
+                WITH wr_id, wr_name, targets, total_targets,
+                     (targets * 1.0 / total_targets) as share
+                ORDER BY share DESC
+                RETURN COLLECT({id: wr_id, name: wr_name, share: share}) as wr_shares,
+                       SUM(share * share) as herfindahl_index
+                """
+
+                records = self._run_query(wr_query, {'team': team, 'season': int(season)})
+
+                if records and records[0].get('wr_shares'):
+                    wr_shares = records[0]['wr_shares']
+                    herfindahl = records[0].get('herfindahl_index', 0)
+
+                    # Higher concentration = fewer WRs dominating
+                    wr_target_concentration = herfindahl * 100
+
+                    # Is this player the alpha (WR1)?
+                    alpha_wr = 1 if wr_shares and wr_shares[0]['id'] == player_id else 0
+
+                    competition_data.append({
+                        'player_id': player_id,
+                        'season': season,
+                        'wr_target_concentration': wr_target_concentration,
+                        'alpha_wr_indicator': alpha_wr
+                    })
+
+        if competition_data:
+            comp_df = pd.DataFrame(competition_data)
+            df = df.merge(
+                comp_df,
+                on=['player_id', 'season'],
+                how='left'
+            )
+            matched_rb = df['rb_committee_score'].notna().sum()
+            matched_wr = df['wr_target_concentration'].notna().sum()
+            logger.info(f"  Added RB competition for {matched_rb:,} RBs")
+            logger.info(f"  Added WR competition for {matched_wr:,} WRs")
+        else:
+            logger.warning("  No competition data found")
+            df['rb_committee_score'] = np.nan
+            df['wr_target_concentration'] = np.nan
+            df['alpha_wr_indicator'] = np.nan
+
+        return df
+
+    # =========================================================================
     # LOCAL FILE FEATURES (CONTRACT DATA, TEAM TENDENCIES)
     # =========================================================================
 
@@ -2320,6 +2603,18 @@ class ExpandedDatasetBuilder:
         df['yards_per_carry'] = df['rushing_yards'] / df['carries'].replace(0, np.nan)
         df['yards_per_target'] = df['receiving_yards'] / df['targets'].replace(0, np.nan)
 
+        # Phase 2.0: Dual-Threat QB Indicators (Expected +0.01-0.02 R²)
+        # Measures QB rushing contribution vs passing
+        total_yards = df['passing_yards'].fillna(0) + df['rushing_yards'].fillna(0) + 1
+        df['dual_threat_indicator'] = df['rushing_yards'].fillna(0) / total_yards
+
+        total_tds = df['passing_tds'].fillna(0) + df['rushing_tds'].fillna(0) + 1
+        df['rushing_share_of_tds'] = df['rushing_tds'].fillna(0) / total_tds
+
+        # INT rate per ~10 pass attempts (lower is better)
+        pass_attempts_proxy = df['passing_yards'].fillna(0) / 10 + 1
+        df['int_rate'] = df['interceptions'].fillna(0) / pass_attempts_proxy
+
         # Career comparisons
         df['ppg_vs_career'] = df['ppg_ppr'] - df['career_ppg']
         df['ppg_vs_best'] = df['ppg_ppr'] - df['best_season_ppg']
@@ -2364,6 +2659,282 @@ class ExpandedDatasetBuilder:
             df['consistency_score'] = 100 * (1 - df['bust_rate'].fillna(0.3))
 
         logger.info(f"  Engineered {len(df.columns)} total features")
+        return df
+
+    # =========================================================================
+    # NEW FEATURE METHODS (Defense & Coaching from Cache)
+    # =========================================================================
+
+    def add_defense_matchup_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add opponent defense quality features from cached PBP data.
+
+        Reads from defense cache to calculate:
+        - Defensive EPA per play (normalized)
+        - Position-specific points allowed estimates
+        - Pressure rate and sack rate
+        - Pass/rush defense efficiency
+
+        Uses prior-season defense metrics to avoid leakage.
+        """
+        logger.info("Adding defense matchup features...")
+
+        cache_dir = Path('data/defense_cache')
+
+        # Find the most recent cache file
+        cache_files = sorted(cache_dir.glob('pbp_defense_*.parquet'))
+        if not cache_files:
+            logger.warning("  No defense cache found - skipping")
+            for col in ['opponent_def_epa', 'opponent_pressure_rate', 'opponent_sack_rate',
+                       'opponent_pass_def_quality', 'opponent_rush_def_quality']:
+                df[col] = np.nan
+            return df
+
+        # Load cached PBP data
+        pbp_df = pd.read_parquet(cache_files[-1])
+        logger.info(f"  Loaded {len(pbp_df):,} plays from cache")
+
+        # Filter to relevant plays
+        if 'play_type' not in pbp_df.columns:
+            logger.warning("  Cache format unexpected - skipping")
+            return df
+
+        pbp_df = pbp_df[pbp_df['play_type'].isin(['pass', 'run'])].copy()
+
+        # Aggregate by defending team and season
+        defense_profiles = []
+
+        for (season, defteam), group in pbp_df.groupby(['season', 'defteam']):
+            if pd.isna(defteam) or defteam == '':
+                continue
+
+            profile = {
+                'def_season': int(season),
+                'def_team': str(defteam),
+            }
+
+            # Overall defensive EPA (negated - lower means better defense)
+            profile['def_epa_per_play'] = -group['epa'].mean() if 'epa' in group.columns else np.nan
+
+            # Pass defense
+            pass_plays = group[group['play_type'] == 'pass']
+            if len(pass_plays) > 0:
+                profile['pass_epa_allowed'] = -pass_plays['epa'].mean() if 'epa' in pass_plays.columns else np.nan
+                if 'qb_hit' in pass_plays.columns:
+                    profile['pressure_rate'] = ((pass_plays['qb_hit'].fillna(0) == 1) |
+                                                (pass_plays.get('sack', pd.Series([0])).fillna(0) == 1)).mean()
+                else:
+                    profile['pressure_rate'] = np.nan
+                if 'sack' in pass_plays.columns:
+                    profile['sack_rate'] = pass_plays['sack'].fillna(0).mean()
+                else:
+                    profile['sack_rate'] = np.nan
+            else:
+                profile['pass_epa_allowed'] = np.nan
+                profile['pressure_rate'] = np.nan
+                profile['sack_rate'] = np.nan
+
+            # Rush defense
+            rush_plays = group[group['play_type'] == 'run']
+            if len(rush_plays) > 0:
+                profile['rush_epa_allowed'] = -rush_plays['epa'].mean() if 'epa' in rush_plays.columns else np.nan
+            else:
+                profile['rush_epa_allowed'] = np.nan
+
+            defense_profiles.append(profile)
+
+        if not defense_profiles:
+            logger.warning("  No defense profiles generated")
+            return df
+
+        def_df = pd.DataFrame(defense_profiles)
+        logger.info(f"  Generated {len(def_df):,} team-season defense profiles")
+
+        # Normalize within season (z-score)
+        for col in ['def_epa_per_play', 'pass_epa_allowed', 'rush_epa_allowed', 'pressure_rate', 'sack_rate']:
+            if col in def_df.columns:
+                def_df[f'{col}_zscore'] = def_df.groupby('def_season')[col].transform(
+                    lambda x: (x - x.mean()) / x.std() if x.std() > 0 else 0
+                )
+
+        # For each player-season, get opponent defense quality
+        # Use PRIOR season defense stats to avoid leakage
+        # (we predict next_season performance, so we can use current opponent data)
+
+        # Create lookup: season -> opponent team -> defense stats
+        # We'll approximate by using league-average defense quality
+        season_avg = def_df.groupby('def_season').agg({
+            'def_epa_per_play': 'mean',
+            'pressure_rate': 'mean',
+            'sack_rate': 'mean',
+            'pass_epa_allowed': 'mean',
+            'rush_epa_allowed': 'mean'
+        }).reset_index()
+
+        season_avg.columns = ['season', 'league_avg_def_epa', 'league_avg_pressure',
+                             'league_avg_sack_rate', 'league_avg_pass_def', 'league_avg_rush_def']
+
+        df = df.merge(season_avg, on='season', how='left')
+
+        # Calculate position-specific opponent quality
+        # Higher values = easier matchups (opponents allowed more points)
+        df['opponent_def_quality'] = df.apply(
+            lambda row: self._get_position_defense_factor(row, def_df), axis=1
+        )
+
+        matched = df['league_avg_def_epa'].notna().sum()
+        logger.info(f"  Added defense features for {matched:,} player-seasons")
+
+        return df
+
+    def _get_position_defense_factor(self, row, def_df: pd.DataFrame) -> float:
+        """Get position-specific defense quality factor.
+
+        Returns a factor where positive = easier matchups.
+        """
+        pos = row.get('position')
+        season = row.get('season')
+
+        # Get league averages for the season
+        season_data = def_df[def_df['def_season'] == season]
+        if season_data.empty:
+            return 0.0
+
+        # Position-specific weights
+        if pos == 'QB':
+            # QBs care about pressure and pass defense
+            return season_data['pass_epa_allowed'].mean() * 0.7 + season_data['pressure_rate'].mean() * -30
+        elif pos == 'RB':
+            # RBs care about rush defense
+            return season_data['rush_epa_allowed'].mean() * 1.0
+        elif pos in ['WR', 'TE']:
+            # Receivers care about pass defense
+            return season_data['pass_epa_allowed'].mean() * 1.0
+        else:
+            return 0.0
+
+    def add_coaching_scheme_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add coaching scheme features from cached PBP data.
+
+        Reads from coaching cache to calculate:
+        - Pass rate in neutral game script
+        - Motion rate
+        - Play-action rate
+        - 11 personnel usage rate
+        - Coaching tree classification
+
+        Uses prior-season scheme data to project next year.
+        """
+        logger.info("Adding coaching scheme features...")
+
+        cache_dir = Path('data/coaching_cache')
+
+        # Find the most recent cache file
+        cache_files = sorted(cache_dir.glob('pbp_coaching_*.parquet'))
+        if not cache_files:
+            logger.warning("  No coaching cache found - skipping")
+            for col in ['team_pass_rate_neutral', 'team_motion_rate', 'team_play_action_rate',
+                       'team_11_personnel_rate', 'coaching_tree_score']:
+                df[col] = np.nan
+            return df
+
+        # Load cached PBP data
+        pbp_df = pd.read_parquet(cache_files[-1])
+        logger.info(f"  Loaded {len(pbp_df):,} plays from cache")
+
+        # Filter to relevant plays
+        if 'play_type' not in pbp_df.columns:
+            logger.warning("  Cache format unexpected - skipping")
+            return df
+
+        pbp_df = pbp_df[pbp_df['play_type'].isin(['pass', 'run'])].copy()
+
+        # Define neutral game script
+        pbp_df['is_neutral'] = (
+            (pbp_df['score_differential'].abs() <= 7) &
+            (pbp_df['qtr'].isin([1, 2, 3])) &
+            (pbp_df['down'].isin([1, 2, 3]))
+        ) if all(c in pbp_df.columns for c in ['score_differential', 'qtr', 'down']) else False
+
+        # Aggregate by team-season
+        coaching_profiles = []
+
+        for (season, team), group in pbp_df.groupby(['season', 'posteam']):
+            if pd.isna(team) or team == '':
+                continue
+
+            profile = {
+                'coach_season': int(season),
+                'coach_team': str(team),
+            }
+
+            # Filter to neutral situations
+            neutral_plays = group[group['is_neutral']] if 'is_neutral' in group.columns else group
+
+            if len(neutral_plays) > 0:
+                profile['pass_rate_neutral'] = (neutral_plays['play_type'] == 'pass').mean()
+            else:
+                profile['pass_rate_neutral'] = 0.55  # League average
+
+            # Motion rate
+            if 'motion' in group.columns:
+                profile['motion_rate'] = group['motion'].fillna(0).mean()
+            else:
+                profile['motion_rate'] = 0.45  # Estimate
+
+            # Play-action rate
+            if 'play_action' in group.columns:
+                profile['play_action_rate'] = group['play_action'].fillna(0).mean()
+            else:
+                profile['play_action_rate'] = 0.25  # Estimate
+
+            # 11 personnel (1 RB, 1 TE, 3 WR)
+            if 'personnel' in group.columns:
+                profile['personnel_11_rate'] = group['personnel'].fillna('').str.contains('1 RB, 1 TE').mean()
+            else:
+                profile['personnel_11_rate'] = 0.60  # Estimate
+
+            coaching_profiles.append(profile)
+
+        if not coaching_profiles:
+            logger.warning("  No coaching profiles generated")
+            return df
+
+        coach_df = pd.DataFrame(coaching_profiles)
+        logger.info(f"  Generated {len(coach_df):,} team-season coaching profiles")
+
+        # Rename for merge
+        coach_df = coach_df.rename(columns={
+            'coach_season': 'season',
+            'coach_team': 'team',
+            'pass_rate_neutral': 'team_pass_rate_neutral',
+            'motion_rate': 'team_motion_rate',
+            'play_action_rate': 'team_play_action_rate',
+            'personnel_11_rate': 'team_11_personnel_rate'
+        })
+
+        # Coaching tree scores (higher = more fantasy-friendly)
+        # McVay/Shanahan trees are most pass-heavy
+        COACHING_TREE_SCORES = {
+            'KC': 3.0, 'LAR': 3.0, 'SF': 3.0, 'MIA': 3.0, 'MIN': 3.0,  # Reid/McVay/Shanahan
+            'GB': 2.5, 'PHI': 2.5, 'DET': 2.5,  # Offensive-minded
+            'BUF': 2.0, 'CIN': 2.0, 'DAL': 2.0, 'LAC': 2.0,  # Balanced
+        }
+
+        coach_df['coaching_tree_score'] = coach_df['team'].map(
+            lambda t: COACHING_TREE_SCORES.get(t, 1.5)  # Default = league average
+        )
+
+        # Merge with main dataframe
+        df = df.merge(
+            coach_df[['team', 'season', 'team_pass_rate_neutral', 'team_motion_rate',
+                     'team_play_action_rate', 'team_11_personnel_rate', 'coaching_tree_score']],
+            on=['team', 'season'],
+            how='left'
+        )
+
+        matched = df['team_pass_rate_neutral'].notna().sum()
+        logger.info(f"  Added coaching features for {matched:,} player-seasons")
+
         return df
 
     # =========================================================================
@@ -2430,16 +3001,31 @@ class ExpandedDatasetBuilder:
         # Step 16: Add KTC trend features (momentum, volatility, signals)
         df = self.add_ktc_trend_features(df)
 
-        # Step 17: Add enhanced features from local file (contract data, athletic pct)
+        # Step 17: Phase 2.1 - Add schedule strength features (R² improvement)
+        df = self.add_schedule_strength_features(df)
+
+        # Step 18: Phase 2.2 - Add QB stability features (R² improvement)
+        df = self.add_qb_stability_features(df)
+
+        # Step 19: Phase 2.3 - Add competition features (R² improvement)
+        df = self.add_competition_features(df)
+
+        # Step 20: NEW - Add defense matchup features (from cached PBP)
+        df = self.add_defense_matchup_features(df)
+
+        # Step 21: NEW - Add coaching scheme features (from cached PBP)
+        df = self.add_coaching_scheme_features(df)
+
+        # Step 22: Add enhanced features from local file (contract data, athletic pct)
         df = self.add_enhanced_features_from_file(df)
 
-        # Step 18: Add graph features from local file (team tendencies)
+        # Step 23: Add graph features from local file (team tendencies)
         df = self.add_graph_features_from_file(df)
 
-        # Step 19: Add era-normalized features (z-scores, percentiles, YoY changes, sample weights)
+        # Step 24: Add era-normalized features (z-scores, percentiles, YoY changes, sample weights)
         df = self.add_era_normalized_features(df)
 
-        # Step 20: Engineer features (final derived features)
+        # Step 25: Engineer features (final derived features, includes Phase 2.0)
         df = self.engineer_features(df)
 
         logger.info("="*60)
