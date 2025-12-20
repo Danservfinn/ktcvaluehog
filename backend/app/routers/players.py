@@ -430,12 +430,12 @@ def _project_ppg(current_ppg: float, age: int, position: str, years: int) -> flo
 
     for y in range(years):
         player_age = age + y + 1
-        if player_age < peak["start"]:
-            # Pre-peak: slight improvement
-            ppg *= 1.02
+        if player_age <= peak["start"]:
+            # Pre-peak: growth as player develops (3% per year)
+            ppg *= 1.03
         elif player_age <= peak["end"]:
-            # Peak: stable
-            ppg *= 0.99
+            # Peak: stable production
+            ppg *= 1.0
         else:
             # Post-peak: decline accelerates
             years_past = player_age - peak["end"]
