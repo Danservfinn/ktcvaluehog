@@ -11,7 +11,8 @@ import json
 router = APIRouter(prefix="/ml-monitor", tags=["ML Monitor"])
 
 # LLM URL - can be local or Cloudflare tunnel URL
-LLM_URL = os.getenv("LLM_URL", "http://172.16.108.209:1234")
+# Default to local network IP, override with LLM_URL env var for cloud deployment
+LLM_URL = os.getenv("LLM_URL", "http://192.168.1.81:1234")
 
 # Path to ML experiments data
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
