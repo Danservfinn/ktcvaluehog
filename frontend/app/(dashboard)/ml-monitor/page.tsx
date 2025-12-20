@@ -238,10 +238,11 @@ function MLMonitorContent() {
       }
       const result = await response.json();
       setData(result);
+      setError(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to fetch status";
       setError(errorMessage);
-      setData(getDemoData());
+      setData(null);
     } finally {
       setLoading(false);
     }
@@ -384,51 +385,78 @@ function MLMonitorContent() {
         </div>
       </div>
 
-      {/* Error Alert */}
-      {error && (
-        <div className="flex items-center gap-3 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-          <AlertTriangle className="h-5 w-5 text-amber-600" />
-          <p className="text-sm text-amber-700">{error}</p>
-          <span className="text-xs text-amber-600 ml-auto">Using demo data</span>
+      {/* Error State - No Data */}
+      {error && !data && (
+        <Card variant="elevated" className="border-rose-500/30 bg-rose-500/5">
+          <CardContent className="py-12 text-center">
+            <div className="max-w-md mx-auto">
+              <div className="h-16 w-16 rounded-2xl bg-rose-500/15 flex items-center justify-center mx-auto mb-4">
+                <AlertTriangle className="h-8 w-8 text-rose-500" />
+              </div>
+              <h3 className="text-lg font-semibold text-rose-600 mb-2">Cannot Connect to ML System</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                {error === "HTTP 404"
+                  ? "The ML monitor endpoint is not available. Make sure the backend server is running with the ML monitor router enabled."
+                  : `Error: ${error}`}
+              </p>
+              <div className="bg-secondary/50 rounded-lg p-4 text-left text-xs font-mono text-muted-foreground">
+                <p className="mb-2">To start the backend with ML monitor:</p>
+                <code className="text-primary">cd backend && uvicorn app.main:app --reload --port 8001</code>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchStatus}
+                className="mt-4"
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Retry Connection
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats Cards - 5 items (Miller's Law) - Only show when data exists */}
+      {data && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <StatCard
+            title="Pending Hypotheses"
+            value={stats?.queue_size || 0}
+            icon={Lightbulb}
+            color="purple"
+          />
+          <StatCard
+            title="Completed"
+            value={stats?.completed || 0}
+            icon={CheckCircle2}
+            color="sky"
+          />
+          <StatCard
+            title="Promoted"
+            value={stats?.promoted || 0}
+            icon={Trophy}
+            color="emerald"
+            subtitle="Models deployed"
+          />
+          <StatCard
+            title="Failed"
+            value={stats?.failed || 0}
+            icon={XCircle}
+            color="rose"
+          />
+          <StatCard
+            title="Model Versions"
+            value={data?.model_versions || 0}
+            icon={GitBranch}
+            color="amber"
+          />
         </div>
       )}
 
-      {/* Stats Cards - 5 items (Miller's Law) */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <StatCard
-          title="Pending Hypotheses"
-          value={stats?.queue_size || 0}
-          icon={Lightbulb}
-          color="purple"
-        />
-        <StatCard
-          title="Completed"
-          value={stats?.completed || 0}
-          icon={CheckCircle2}
-          color="sky"
-        />
-        <StatCard
-          title="Promoted"
-          value={stats?.promoted || 0}
-          icon={Trophy}
-          color="emerald"
-          subtitle="Models deployed"
-        />
-        <StatCard
-          title="Failed"
-          value={stats?.failed || 0}
-          icon={XCircle}
-          color="rose"
-        />
-        <StatCard
-          title="Model Versions"
-          value={data?.model_versions || 0}
-          icon={GitBranch}
-          color="amber"
-        />
-      </div>
-
-      {/* Main Content Grid */}
+      {/* Main Content Grid - Only show when data exists */}
+      {data && (
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Experiment Performance Chart - 2 columns */}
         <Card variant="elevated" className="lg:col-span-2">
@@ -556,8 +584,10 @@ function MLMonitorContent() {
           </CardContent>
         </Card>
       </div>
+      )}
 
-      {/* Tabs for Details */}
+      {/* Tabs for Details - Only show when data exists */}
+      {data && (
       <Tabs defaultValue="agents" className="w-full">
         <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
           <TabsTrigger value="agents" className="gap-2">
@@ -869,6 +899,7 @@ function MLMonitorContent() {
           </div>
         </TabsContent>
       </Tabs>
+      )}
 
       {/* Footer */}
       {data?.last_updated && (
@@ -878,127 +909,4 @@ function MLMonitorContent() {
       )}
     </div>
   );
-}
-
-// Demo data
-function getDemoData(): MLMonitorData {
-  return {
-    stats: {
-      queue_size: 27,
-      total_experiments: 5,
-      completed: 5,
-      promoted: 0,
-      failed: 0,
-      rejected: 0,
-      avg_improvement: 0.1896,
-      max_improvement: 0.1897,
-      llm_connected: true,
-    },
-    agents: [
-      { name: "data_scout", status: "idle", last_run: null, hypotheses_generated: 3 },
-      { name: "feature_engineer", status: "idle", last_run: null, hypotheses_generated: 12 },
-      { name: "architecture_search", status: "idle", last_run: null, hypotheses_generated: 5 },
-      { name: "error_analyst", status: "idle", last_run: null, hypotheses_generated: 2 },
-      { name: "drift_monitor", status: "idle", last_run: null, hypotheses_generated: 0 },
-      { name: "meta_learner", status: "idle", last_run: null, hypotheses_generated: 4 },
-      { name: "llm_creative", status: "idle", last_run: null, hypotheses_generated: 6 },
-    ],
-    top_hypotheses: [
-      {
-        id: "feat_interaction_targets_x_snap_pct",
-        type: "feature_engineering",
-        description: "Add interaction feature: targets × snap_pct for usage intensity",
-        priority: 0.85,
-        source: "feature_engineer",
-        config: {},
-        tags: ["interaction", "usage"],
-      },
-      {
-        id: "llm_offensive_line_strength",
-        type: "new_feature",
-        description: "Offensive line strength impacts RB opportunities and WR time to throw",
-        priority: 0.78,
-        source: "llm_creative",
-        config: {},
-        tags: ["llm", "contextual"],
-      },
-      {
-        id: "data_refresh_pbp_2024",
-        type: "data_refresh",
-        description: "Play-by-play data is stale (last update: 2024-12-15)",
-        priority: 0.72,
-        source: "data_scout",
-        config: {},
-        tags: ["data", "freshness"],
-      },
-      {
-        id: "arch_attention_heads_4",
-        type: "architecture",
-        description: "Increase attention heads from 2 to 4 for better feature interactions",
-        priority: 0.68,
-        source: "architecture_search",
-        config: {},
-        tags: ["neural", "attention"],
-      },
-      {
-        id: "feat_ratio_ypc_vs_team",
-        type: "feature_engineering",
-        description: "Add ratio feature: yards per carry vs team average",
-        priority: 0.62,
-        source: "feature_engineer",
-        config: {},
-        tags: ["ratio", "relative"],
-      },
-    ],
-    recent_experiments: [
-      {
-        hypothesis_id: "feat_07dec8ac",
-        status: "completed",
-        r2_improvement: 0.1897,
-        rmse_improvement: -0.045,
-        duration_seconds: 45.2,
-        metrics: {},
-      },
-      {
-        hypothesis_id: "feat_61f6664b",
-        status: "completed",
-        r2_improvement: 0.1897,
-        rmse_improvement: -0.032,
-        duration_seconds: 78.5,
-        metrics: {},
-      },
-      {
-        hypothesis_id: "feat_6c6809e4",
-        status: "completed",
-        r2_improvement: 0.1896,
-        rmse_improvement: -0.028,
-        duration_seconds: 32.1,
-        metrics: {},
-      },
-      {
-        hypothesis_id: "feat_c6a0b3f3",
-        status: "completed",
-        r2_improvement: 0.1896,
-        rmse_improvement: -0.019,
-        duration_seconds: 41.8,
-        metrics: {},
-      },
-      {
-        hypothesis_id: "feat_bffd0ffd",
-        status: "completed",
-        r2_improvement: 0.1895,
-        rmse_improvement: 0.008,
-        duration_seconds: 28.3,
-        metrics: {},
-      },
-    ],
-    llm_status: {
-      connected: true,
-      url: "http://172.16.108.209:1234",
-      model: "openai/gpt-oss-20b",
-      cost: "$0",
-    },
-    model_versions: 0,
-    last_updated: new Date().toISOString(),
-  };
 }
