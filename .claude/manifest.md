@@ -12,6 +12,7 @@
 | Next.js 14 Frontend Architecture | code_index | ./.claude/code_index/nextjs-frontend.md | frontend, nextjs, react, tailwind, miller-law, cloudflare-pages, light-theme | — | 2025-12-18 |
 | NFL Betting Data Ingestion | code_index | ./.claude/code_index/betting-data-ingestion.md | betting, data-pipeline, neo4j, ml | — | 2025-12-17 |
 | Platform Launch v2 - Next.js + FastAPI | plans | ./.claude/plans/platform-launch-v2.md | deployment, nextjs, fastapi, freemium, millers-law | — | 2025-12-17 |
+| Player Research Modal | code_index | ./.claude/code_index/player-research-modal.md | frontend, modal, player, research, neo4j, radix-ui | — | 2025-12-20 |
 | Production Deployment Architecture | patterns | ./.claude/patterns/deployment-architecture.md | deployment, vercel, railway, nextjs, fastapi, neo4j, supabase, infrastructure | — | 2025-12-18 |
 | Stacked Ensemble ML Pipeline | code_index | ./.claude/code_index/ml-stacked-ensemble.md | ml, ensemble, stacking, neural-network, lightgbm, huber-loss, feature-attention, model-registry, daily-retrain | — | 2025-12-18 |
 | Thoth AI Agent | code_index | ./.claude/code_index/thoth-ai-agent.md | agent, ai, tools | — | 2025-12-17 |

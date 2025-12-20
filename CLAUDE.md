@@ -51,11 +51,12 @@ Thoth - Dynasty fantasy football analysis platform using Neo4j graph database, K
 ## Miller's Law UI Design (7±2 Principle)
 
 All UI elements follow Miller's Law - humans can hold 7±2 items in working memory:
-- **Navigation**: 7 items max (Dashboard, Players, Rankings, Trade, Projections, Chat, Settings)
+- **Navigation**: 6 items (Dashboard, Players, Trade, Projections, Chat, Settings)
 - **Dashboard**: 5-7 widgets per view
 - **Tables**: 7 columns default, more in expandable section
 - **Search Results**: 7 items initially, paginate rest
 - **Forms**: Chunk into 5-7 field groups
+- **Player Research Modal**: 7 collapsible sections
 
 ### Deployment Files
 - `deploy/DEPLOYMENT.md` - Step-by-step deployment guide
@@ -77,19 +78,26 @@ frontend/
 │   ├── login/page.tsx              # Login page (Admin/Email modes)
 │   ├── pricing/page.tsx            # 3-tier pricing comparison
 │   └── (dashboard)/
-│       ├── layout.tsx              # 7-item nav sidebar + user state
+│       ├── layout.tsx              # 6-item nav sidebar + user state
 │       ├── page.tsx                # Dashboard (5 widgets)
-│       ├── players/page.tsx        # Player search
-│       ├── rankings/page.tsx       # 7-column rankings table
+│       ├── players/page.tsx        # Redirects to /rankings
+│       ├── rankings/page.tsx       # Consolidated Players page with research modal
 │       ├── trade/page.tsx          # Trade analyzer (5 max per side)
 │       ├── projections/page.tsx    # Elite-gated projections
 │       ├── chat/page.tsx           # Thoth AI with BYOK
 │       └── settings/page.tsx       # API key management
-├── components/ui/                   # shadcn-style components
-│   ├── button.tsx                  # Button with asChild support
-│   ├── card.tsx                    # Card variants (glass, premium, elevated)
-│   ├── badge.tsx                   # Position-colored badges
-│   └── input.tsx                   # Input component
+├── components/
+│   ├── ui/                         # shadcn-style components
+│   │   ├── button.tsx              # Button with asChild support
+│   │   ├── card.tsx                # Card variants (glass, premium, elevated)
+│   │   ├── badge.tsx               # Position-colored badges
+│   │   ├── dialog.tsx              # Radix Dialog primitive
+│   │   └── input.tsx               # Input component
+│   ├── player/
+│   │   └── player-research-modal.tsx  # Player research breakdown modal
+│   └── trade/
+│       ├── elite-trade-report.tsx  # Elite trade analysis report
+│       └── written-report-section.tsx  # AI-enhanced trade narrative
 ├── contexts/
 │   └── auth-context.tsx            # Auth provider (admin bypass + Supabase)
 ├── lib/
@@ -113,6 +121,27 @@ frontend/
 - **Position Colors**: QB amber, RB emerald, WR sky, TE purple
 - **Trend Indicators**: Rising/falling with color coding (emerald/rose)
 - **Suspense Boundaries**: Proper handling for useSearchParams in static export
+- **Player Research Modal**: Click any player row to see comprehensive breakdown
+
+### Player Research Modal
+
+Click any player row in the Players page to open a research modal with 7 sections:
+
+1. **Header** - Name, position badge, team, age, grade, KTC value with trend
+2. **Value Analysis** - Current value, 1yr/2yr/3yr projections, rank (default open)
+3. **Production Metrics** - PPG, receiving/rushing stats, EPA, WOPR (default open)
+4. **Dynasty Outlook** - Aging curve, peak window, ML projections
+5. **Risk Assessment** - Injury burden, games missed, depth chart security
+6. **Athletic Profile** - Combine metrics (collapsed by default)
+7. **Draft Capital** - Round, pick, college (collapsed by default)
+
+**Neo4j Data Sources**: KTCTrend, PlayerInjuryProfile, PlayerRoleProfile, PlayByPlayAggregates, HistoricalSeasonStats, CombineResult, DraftPick
+
+**Files**:
+- `frontend/components/player/player-research-modal.tsx` - Modal component
+- `frontend/components/ui/dialog.tsx` - Radix Dialog primitive
+- `backend/app/routers/players.py` - `/research` endpoint
+- `backend/app/models/player.py` - `PlayerResearch` model
 
 ### Authentication
 
@@ -248,6 +277,7 @@ GET  /api/v1/health              # Health check
 # Players
 GET  /api/v1/players/search      # Search players (position, team, age, ktc)
 GET  /api/v1/players/{id}        # Player profile
+GET  /api/v1/players/{id}/research  # Comprehensive player research (modal data)
 POST /api/v1/players/compare     # Compare 2-5 players
 
 # Signals
