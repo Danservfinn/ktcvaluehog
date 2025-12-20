@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import {
   LayoutDashboard,
   Users,
-  Trophy,
   ArrowLeftRight,
   LineChart,
   MessageSquare,
@@ -51,7 +50,7 @@ function ThothLogo({ size = "default" }: { size?: "default" | "small" }) {
   );
 }
 
-// Miller's Law: Exactly 7 navigation items
+// Miller's Law: Exactly 6 navigation items (consolidated Players/Rankings)
 const navItems = [
   {
     href: "/",
@@ -62,18 +61,11 @@ const navItems = [
     description: "Overview & insights",
   },
   {
-    href: "/players",
-    matchPath: "/players",
-    label: "Players",
-    icon: Users,
-    description: "Search & analyze",
-  },
-  {
     href: "/rankings",
     matchPath: "/rankings",
-    label: "Rankings",
-    icon: Trophy,
-    description: "Dynasty values",
+    label: "Players",
+    icon: Users,
+    description: "Search & research",
   },
   {
     href: "/trade",

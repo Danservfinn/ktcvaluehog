@@ -178,6 +178,86 @@ export interface EliteTradeAnalysis {
   written_report?: TradeNarrative;
 }
 
+// Player Research Types (for modal display)
+export interface ResearchValueAnalysis {
+  current_value: number;
+  value_rank?: number;
+  positional_rank?: number;
+  value_30d_change?: number;
+  value_trend?: 'rising' | 'stable' | 'falling';
+  projected_value_1yr?: number;
+  projected_value_2yr?: number;
+  projected_value_3yr?: number;
+}
+
+export interface ResearchProductionProfile {
+  season_ppg?: number;
+  games_played?: number;
+  total_points?: number;
+  targets?: number;
+  receptions?: number;
+  receiving_yards?: number;
+  receiving_tds?: number;
+  carries?: number;
+  rushing_yards?: number;
+  rushing_tds?: number;
+  target_share?: number;
+  touch_share?: number;
+  red_zone_share?: number;
+  epa_per_touch?: number;
+  wopr?: number;
+  adot?: number;
+}
+
+export interface ResearchDynastyOutlook {
+  years_in_peak?: number;
+  peak_window?: string;
+  aging_curve_position?: 'Pre-Peak' | 'Peak' | 'Post-Peak' | 'Declining';
+  projected_ppg?: number;
+  projection_floor?: number;
+  projection_ceiling?: number;
+  projection_confidence?: number;
+}
+
+export interface ResearchRiskAssessment {
+  injury_burden_score?: number;
+  injury_risk_level?: 'Low' | 'Medium' | 'High';
+  games_missed_3yr?: number;
+  starter_rate?: number;
+  depth_chart_security?: 'Locked' | 'Secure' | 'At Risk';
+}
+
+export interface ResearchAthleticProfile {
+  forty_time?: number;
+  vertical_jump?: number;
+  broad_jump?: number;
+  three_cone?: number;
+  shuttle?: number;
+  bench_press?: number;
+  height?: number;
+  weight?: number;
+  draft_round?: number;
+  draft_pick?: number;
+  draft_year?: number;
+}
+
+export interface PlayerResearch {
+  player_id: string;
+  name: string;
+  position: string;
+  team?: string;
+  age?: number;
+  experience?: number;
+  college?: string;
+  value: ResearchValueAnalysis;
+  production: ResearchProductionProfile;
+  dynasty: ResearchDynastyOutlook;
+  risk: ResearchRiskAssessment;
+  athletic?: ResearchAthleticProfile;
+  overall_grade?: string;
+  one_liner?: string;
+}
+
 export interface PaginatedResponse<T> {
   success: boolean;
   data: T[];
@@ -273,6 +353,10 @@ class ApiClient {
 
   async getValueHistory(id: string, days = 90): Promise<ApiResponse<{ date: string; value: number }[]>> {
     return this.fetch(`/api/v1/players/${id}/value-history?days=${days}`);
+  }
+
+  async getPlayerResearch(id: string): Promise<ApiResponse<PlayerResearch>> {
+    return this.fetch(`/api/v1/players/${id}/research`);
   }
 
   async comparePlayers(playerIds: string[]): Promise<ApiResponse<{ players: Player[]; comparison_summary: string }>> {

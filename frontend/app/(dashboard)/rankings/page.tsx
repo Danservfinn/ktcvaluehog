@@ -24,9 +24,11 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { api, PlayerSummary } from "@/lib/api";
+import { PlayerResearchModal } from "@/components/player/player-research-modal";
 
 // Rankings data type
 interface RankingPlayer {
+  player_id: string;
   rank: number;
   name: string;
   pos: string;
@@ -47,6 +49,16 @@ export default function RankingsPage() {
   const [total, setTotal] = useState(0);
   const itemsPerPage = 10;
 
+  // Modal state for player research
+  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const handleRowClick = (playerId: string, tier?: string) => {
+    if (tier === "pro") return; // Don't open modal for locked players
+    setSelectedPlayerId(playerId);
+    setModalOpen(true);
+  };
+
   useEffect(() => {
     async function fetchRankings() {
       setLoading(true);
@@ -61,6 +73,7 @@ export default function RankingsPage() {
         const response = await api.searchPlayers(params);
         if (response.data) {
           const rankings = response.data.map((player, index) => ({
+            player_id: player.player_id,
             rank: (page - 1) * itemsPerPage + index + 1,
             name: player.name,
             pos: player.position,
@@ -92,10 +105,10 @@ export default function RankingsPage() {
           <div className="h-10 w-10 rounded-xl bg-amber-500/15 flex items-center justify-center">
             <Trophy className="h-5 w-5 text-amber-500" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Dynasty Rankings</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Players</h1>
         </div>
         <p className="text-muted-foreground">
-          Real-time KTC values updated twice daily. Free tier: Top 100.
+          Search and research dynasty players. Click any row for detailed analysis.
         </p>
       </div>
 
@@ -166,8 +179,9 @@ export default function RankingsPage() {
                 </tr>
               ) : rankingsData.map((player) => (
                 <tr
-                  key={player.rank}
-                  className={player.tier === "pro" ? "opacity-60" : ""}
+                  key={player.player_id || player.rank}
+                  className={`${player.tier === "pro" ? "opacity-60" : "cursor-pointer hover:bg-secondary/50"} transition-colors`}
+                  onClick={() => handleRowClick(player.player_id, player.tier)}
                 >
                   <td className="font-medium text-muted-foreground">
                     <div className="flex items-center gap-2">
@@ -304,6 +318,13 @@ export default function RankingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Player Research Modal */}
+      <PlayerResearchModal
+        playerId={selectedPlayerId}
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+      />
     </div>
   );
 }

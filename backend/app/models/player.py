@@ -158,3 +158,96 @@ class PlayerSearchParams(BaseModel):
     offset: int = Field(0, ge=0)
     sort_by: str = "ktc_value"
     sort_desc: bool = True
+
+
+# === Player Research Models ===
+# These mirror the elite trade analysis models for consistency
+
+class ResearchValueAnalysis(BaseModel):
+    """Value analysis for player research modal."""
+    current_value: int
+    value_rank: int | None = None
+    positional_rank: int | None = None
+    value_30d_change: float | None = None
+    value_trend: str | None = None  # "rising", "stable", "falling"
+    projected_value_1yr: int | None = None
+    projected_value_2yr: int | None = None
+    projected_value_3yr: int | None = None
+
+
+class ResearchProductionProfile(BaseModel):
+    """Production metrics for player research modal."""
+    season_ppg: float | None = None
+    games_played: int | None = None
+    total_points: float | None = None
+    targets: int | None = None
+    receptions: int | None = None
+    receiving_yards: int | None = None
+    receiving_tds: int | None = None
+    carries: int | None = None
+    rushing_yards: int | None = None
+    rushing_tds: int | None = None
+    target_share: float | None = None
+    touch_share: float | None = None
+    red_zone_share: float | None = None
+    epa_per_touch: float | None = None
+    wopr: float | None = None
+    adot: float | None = None
+
+
+class ResearchDynastyOutlook(BaseModel):
+    """Dynasty outlook for player research modal."""
+    years_in_peak: int | None = None
+    peak_window: str | None = None
+    aging_curve_position: str | None = None  # "Pre-Peak", "Peak", "Post-Peak", "Declining"
+    projected_ppg: float | None = None
+    projection_floor: float | None = None
+    projection_ceiling: float | None = None
+    projection_confidence: float | None = None
+
+
+class ResearchRiskAssessment(BaseModel):
+    """Risk factors for player research modal."""
+    injury_burden_score: float | None = None
+    injury_risk_level: str | None = None  # "Low", "Medium", "High"
+    games_missed_3yr: int | None = None
+    starter_rate: float | None = None
+    depth_chart_security: str | None = None  # "Locked", "Secure", "At Risk"
+
+
+class ResearchAthleticProfile(BaseModel):
+    """Athletic/combine profile for player research modal."""
+    forty_time: float | None = None
+    vertical_jump: float | None = None
+    broad_jump: int | None = None
+    three_cone: float | None = None
+    shuttle: float | None = None
+    bench_press: int | None = None
+    height: int | None = None
+    weight: int | None = None
+    draft_round: int | None = None
+    draft_pick: int | None = None
+    draft_year: int | None = None
+
+
+class PlayerResearch(BaseModel):
+    """Complete player research data for modal display."""
+    # Core identity
+    player_id: str
+    name: str
+    position: str
+    team: str | None = None
+    age: int | None = None
+    experience: int | None = None
+    college: str | None = None
+
+    # Analysis sections
+    value: ResearchValueAnalysis
+    production: ResearchProductionProfile
+    dynasty: ResearchDynastyOutlook
+    risk: ResearchRiskAssessment
+    athletic: ResearchAthleticProfile | None = None
+
+    # Summary
+    overall_grade: str | None = None
+    one_liner: str | None = None
