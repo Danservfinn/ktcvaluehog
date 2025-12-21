@@ -169,14 +169,14 @@ function ProjectionsContent() {
       setModelInfo({
         r_squared: info.r_squared,
         training_samples: info.training_data?.samples || "9,414",
-        features: 168,
+        features: 177,
       });
     } catch {
       // Use default values if model info unavailable
       setModelInfo({
         r_squared: 0.80,
         training_samples: "9,414",
-        features: 168,
+        features: 177,
       });
     }
   }, []);
@@ -381,7 +381,7 @@ function ProjectionsContent() {
           <Card variant="glass">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-amber-500">
-                {modelInfo?.features || 168}
+                {modelInfo?.features || 177}
               </p>
               <p className="text-xs text-muted-foreground">Features</p>
             </CardContent>

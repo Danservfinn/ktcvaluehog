@@ -131,7 +131,8 @@ async def get_risers(
     """Get players with biggest value increases."""
     db = get_db()
 
-    where_clauses = ["p.ktc_value IS NOT NULL", "p.ktc_trend > 0"]
+    # Filter to active players only (exclude retired)
+    where_clauses = ["p.ktc_value IS NOT NULL", "p.ktc_trend > 0", "p.is_active = true"]
     params = {}
 
     if position:
@@ -165,7 +166,8 @@ async def get_fallers(
     """Get players with biggest value decreases."""
     db = get_db()
 
-    where_clauses = ["p.ktc_value IS NOT NULL", "p.ktc_trend < 0"]
+    # Filter to active players only (exclude retired)
+    where_clauses = ["p.ktc_value IS NOT NULL", "p.ktc_trend < 0", "p.is_active = true"]
     params = {}
 
     if position:

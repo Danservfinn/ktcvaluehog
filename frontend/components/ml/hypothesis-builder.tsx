@@ -557,7 +557,7 @@ export function HypothesisBuilder({
                       </div>
                       <p className="text-sm text-muted-foreground">
                         Step-by-step selection of hypothesis type, features, and configuration.
-                        Browse all 168+ features organized by category.
+                        Browse all 177+ features organized by category.
                       </p>
                     </button>
                   </div>
