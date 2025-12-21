@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, ArrowLeft, Sparkles } from "lucide-react";
+import { Check, X, ArrowLeft, Sparkles, LogIn } from "lucide-react";
 import Link from "next/link";
 
 // Thoth Logo Component
@@ -78,12 +78,20 @@ export default function PricingPage() {
             <ThothLogo />
             <span className="font-bold text-xl">Thoth</span>
           </Link>
-          <Button variant="ghost" asChild>
-            <Link href="/">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Home
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild>
+              <Link href="/login">
+                <LogIn className="h-4 w-4 mr-2" />
+                Login
+              </Link>
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link href="/">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Link>
+            </Button>
+          </div>
         </div>
       </nav>
 
@@ -207,6 +215,17 @@ export default function PricingPage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Secondary login prompt for scrolled users */}
+          <p className="text-center mt-8 text-muted-foreground">
+            Already have an account?{" "}
+            <Link
+              href="/login"
+              className="text-primary font-medium hover:underline underline-offset-4"
+            >
+              Log in
+            </Link>
+          </p>
         </div>
       </section>
 
