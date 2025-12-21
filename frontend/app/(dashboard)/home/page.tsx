@@ -766,7 +766,7 @@ export default function DashboardPage() {
       )}
 
       {/* About Thoth Section */}
-      <section className="mt-8 pt-8 border-t border-border/50">
+      <section id="about" className="mt-8 pt-8 border-t border-border/50 scroll-mt-20">
         <AboutThoth />
       </section>
     </div>

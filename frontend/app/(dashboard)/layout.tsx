@@ -22,6 +22,7 @@ import {
   Shield,
   Bot,
   Trophy,
+  Info,
 } from "lucide-react";
 import { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
@@ -107,6 +108,13 @@ const navItems = [
     icon: MessageSquare,
     tier: "elite",
     description: "AI assistant",
+  },
+  {
+    href: "/home#about",
+    matchPath: "/home#about",
+    label: "About",
+    icon: Info,
+    description: "How Thoth works",
   },
   {
     href: "/settings",
