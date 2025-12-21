@@ -42,9 +42,39 @@ claude plugins enable ai-ml-toolkit@claude-code-templates
 
 ---
 
-## 2. Skills (43 Total)
+## 2. Skills
 
-Install these skills into `~/.claude/skills/`:
+### Option A: Install via claude-code-templates (Recommended)
+
+The [aitmpl.com](https://aitmpl.com/skills) platform aggregates 250+ skills from multiple sources:
+
+```bash
+# Install the CLI tool globally
+npm install -g claude-code-templates
+
+# Browse and install skills interactively
+claude-code-templates
+```
+
+**Skill Sources Aggregated:**
+| Source | Count | Description |
+|--------|-------|-------------|
+| Anthropic Official | 21 | Official Anthropic skills |
+| Claude Code Development | 10 | Development guides |
+| K-Dense-AI Scientific | 139 | Biology, chemistry, medicine, research |
+| Obra Superpowers | 14 | Workflow skills |
+| Alireza Rezvani | 36 | Professional role skills |
+| wshobson Agents | 48 | Agent templates |
+| NerdyChefsAI | Various | Enterprise skills |
+
+**Resources:**
+- Browse skills: [aitmpl.com/skills](https://aitmpl.com/skills)
+- Documentation: [docs.aitmpl.com](https://docs.aitmpl.com)
+- GitHub: [github.com/davila7/claude-code-templates](https://github.com/davila7/claude-code-templates)
+
+### Option B: Manual Installation (43 Skills)
+
+Install these skills manually into `~/.claude/skills/`:
 
 ### Development & Architecture
 | Skill | Description |
@@ -281,9 +311,24 @@ claude plugins enable code-review@claude-plugins-official
 claude plugins enable ai-ml-toolkit@claude-code-templates
 ```
 
-## Step 3: MCP Servers
+## Step 3: Install Skills CLI
 
-Write this to ~/.claude/mcp.json:
+Install the claude-code-templates CLI for access to 250+ skills:
+
+```bash
+npm install -g claude-code-templates
+```
+
+Then browse and install skills interactively:
+```bash
+claude-code-templates
+```
+
+Or browse online at: https://aitmpl.com/skills
+
+## Step 4: MCP Servers
+
+Write to ~/.claude/mcp.json:
 
 ```json
 {
@@ -296,7 +341,7 @@ Write this to ~/.claude/mcp.json:
 }
 ```
 
-## Step 4: Global Settings
+## Step 5: Global Settings
 
 Write this to ~/.claude/settings.json:
 
@@ -311,7 +356,7 @@ Write this to ~/.claude/settings.json:
 }
 ```
 
-## Step 5: Knowledge Base Tool
+## Step 6: Knowledge Base Tool
 
 Install kb-claude (Rust-based knowledge base manager):
 
@@ -324,7 +369,7 @@ Verify installation:
 kb-claude --version
 ```
 
-## Step 6: Initialize Knowledge Base in Project
+## Step 7: Initialize Knowledge Base in Project
 
 Navigate to your project directory and run:
 
@@ -347,7 +392,7 @@ This creates the .claude/ directory structure:
 └── memory_anchors/       # Context anchors
 ```
 
-## Step 7: Knowledge Base Usage
+## Step 8: Knowledge Base Usage
 
 Create entries with:
 ```bash
@@ -363,7 +408,7 @@ After changes, regenerate the manifest:
 kb-claude manifest
 ```
 
-## Step 8: CLAUDE.md Instructions
+## Step 9: CLAUDE.md Instructions
 
 Add this section to your project's CLAUDE.md to maintain the knowledge base:
 
@@ -533,12 +578,14 @@ Comprehensive code review with PR analysis, quality checking, and report generat
 
 ## 10. Source Repositories
 
-| Component | Repository |
-|-----------|------------|
-| Claude Plugins Official | `github.com/anthropics/claude-plugins-official` |
-| Claude Code Templates | `github.com/davila7/claude-code-templates` |
-| Claude Mem | `github.com/thedotmack/claude-mem` |
-| kb-claude | Available on crates.io |
+| Component | Repository | Description |
+|-----------|------------|-------------|
+| Claude Code Templates | `github.com/davila7/claude-code-templates` | 250+ skills aggregator, CLI tool |
+| Claude Plugins Official | `github.com/anthropics/claude-plugins-official` | Official Anthropic plugins |
+| Claude Mem | `github.com/thedotmack/claude-mem` | Persistent memory plugin |
+| kb-claude | Available on crates.io | Knowledge base CLI tool |
+| aitmpl.com | `aitmpl.com` | Skills browser and installer |
+| aitmpl docs | `docs.aitmpl.com` | Documentation for templates |
 
 ---
 
