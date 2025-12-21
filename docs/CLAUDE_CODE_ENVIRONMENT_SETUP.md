@@ -393,7 +393,129 @@ Please execute each step and confirm completion before proceeding to the next.
 
 ---
 
-## 8. Key Skills Reference
+## 8. Writing a Good CLAUDE.md
+
+Based on [HumanLayer's guide](https://www.humanlayer.dev/blog/writing-a-good-claude-md), the CLAUDE.md file is your highest-leverage configuration point. It goes into every conversation, making it the primary way Claude retains project knowledge across sessions.
+
+### Core Principle: LLMs Are Stateless
+
+Claude starts each session with zero codebase knowledge. Critical information must be communicated each session via CLAUDE.md.
+
+### The Three Pillars
+
+| Pillar | Purpose | Example Content |
+|--------|---------|-----------------|
+| **WHAT** | Technology stack, project structure, codebase organization | "Next.js 14 frontend, FastAPI backend, Neo4j database" |
+| **WHY** | Project purpose and component functions | "Trade analyzer helps users evaluate dynasty fantasy trades" |
+| **HOW** | How to work on the project, run tests, verify changes | "Run `npm run build` before committing, use `pytest` for backend" |
+
+### Key Guidelines
+
+#### 1. Less Is More
+- Frontier LLMs reliably follow ~150-200 instructions
+- Claude Code's system prompt already uses ~50 instructions
+- **Target: Under 300 lines** (ideally under 100)
+- Include only universally applicable instructions
+
+#### 2. Progressive Disclosure
+Don't cram everything into CLAUDE.md. Create separate docs:
+
+```
+docs/
+├── CLAUDE.md              # Core instructions (<100 lines)
+├── architecture.md        # System design details
+├── api-reference.md       # API endpoints
+├── testing-guide.md       # How to run tests
+└── deployment.md          # Deployment procedures
+```
+
+Then reference them in CLAUDE.md:
+```markdown
+For architecture details, see docs/architecture.md
+For API reference, see docs/api-reference.md
+```
+
+#### 3. Prefer Pointers Over Copies
+- Don't include code snippets in CLAUDE.md (they become outdated)
+- Reference file paths instead: "See `src/api/routes.py` for endpoint definitions"
+- Let Claude read the actual source files
+
+#### 4. Don't Use CLAUDE.md as a Linter
+- Use actual linters (ESLint, Prettier, Ruff) via hooks
+- Claude learns patterns from existing code (in-context learning)
+- Reserve CLAUDE.md for project-specific knowledge, not style rules
+
+### CLAUDE.md Template
+
+```markdown
+# Project Name
+
+## Overview
+[1-2 sentences describing what this project does]
+
+## Tech Stack
+- Frontend: [framework, hosting]
+- Backend: [framework, hosting]
+- Database: [type, hosting]
+- Auth: [provider]
+
+## Project Structure
+```
+src/
+├── frontend/    # Next.js app
+├── backend/     # FastAPI service
+└── scripts/     # Utility scripts
+```
+
+## Development Commands
+```bash
+# Frontend
+cd frontend && npm run dev
+
+# Backend
+cd backend && uvicorn app.main:app --reload
+
+# Tests
+npm run test        # Frontend
+pytest              # Backend
+```
+
+## Key Files
+- `src/frontend/app/page.tsx` - Main entry point
+- `src/backend/app/main.py` - API server
+- `docs/architecture.md` - System design
+
+## Conventions
+- [List 3-5 critical conventions only]
+- Example: "All API endpoints return JSON with {data, error} structure"
+
+## Before Committing
+1. Run `npm run build` (must pass)
+2. Run `npm run test` (must pass)
+3. Update relevant docs if API changes
+```
+
+### What NOT to Include
+
+| Don't Include | Why | Alternative |
+|---------------|-----|-------------|
+| Full API documentation | Too long, becomes outdated | Reference docs/api.md |
+| Code snippets | Become stale | Reference actual files |
+| Style guide rules | Use linters | ESLint, Prettier configs |
+| Database schemas | Too detailed | Reference schema files |
+| All possible commands | Overwhelming | Only essential commands |
+| Auto-generated content | Low quality, bloated | Manually curate |
+
+### Maintenance
+
+- Review CLAUDE.md monthly for accuracy
+- Remove outdated instructions
+- Add new critical patterns as they emerge
+- Keep under 300 lines (ideally under 100)
+
+---
+
+## 9. Key Skills Reference
 
 ### Critical Reviewer (`/critical-reviewer` or `/critique`)
 Adversarial analysis of web pages for data validity, ML claims, and design credibility. Use when reviewing features before launch.
@@ -409,7 +531,7 @@ Comprehensive code review with PR analysis, quality checking, and report generat
 
 ---
 
-## 9. Source Repositories
+## 10. Source Repositories
 
 | Component | Repository |
 |-----------|------------|
@@ -420,7 +542,7 @@ Comprehensive code review with PR analysis, quality checking, and report generat
 
 ---
 
-## Verification
+## 11. Verification
 
 After setup, verify with:
 
@@ -443,7 +565,7 @@ kb-claude --version
 
 ---
 
-## Notes
+## 12. Notes
 
 - Skills are stored in `~/.claude/skills/` as markdown files with YAML frontmatter
 - Plugins are managed via the `claude plugins` command
