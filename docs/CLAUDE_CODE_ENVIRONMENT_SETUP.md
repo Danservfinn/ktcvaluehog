@@ -228,20 +228,31 @@ kb-claude search "query"                            # Search KB
 
 ## 6. Project-Level Settings
 
-For project-specific permissions, create `.claude/settings.local.json`:
+For project-specific permissions, create `.claude/settings.local.json` in your project root:
 
 ```json
 {
   "permissions": {
     "allow": [
       "Skill(critical-reviewer)",
-      "WebFetch(domain:your-domain.com)",
+      "Skill(systematic-debugging)",
+      "WebFetch(domain:your-production-domain.com)",
       "Bash(npm run build:*)",
-      "Bash(npx wrangler pages deploy:*)"
+      "Bash(npm run test:*)",
+      "Bash(python3:*)"
     ]
   }
 }
 ```
+
+### Common Permission Patterns
+
+| Permission | Purpose |
+|------------|---------|
+| `Skill(<name>)` | Allow specific skill invocation |
+| `WebFetch(domain:<domain>)` | Allow fetching from specific domain |
+| `Bash(<command>:*)` | Allow specific bash command patterns |
+| `mcp__<server>__<tool>` | Allow specific MCP tool |
 
 ---
 
@@ -249,19 +260,32 @@ For project-specific permissions, create `.claude/settings.local.json`:
 
 Copy and paste this prompt into a new Claude Code session:
 
+````
+I need you to set up my Claude Code environment. Execute each section in order.
+
+## Step 1: Plugin Marketplaces
+
+Run these commands to add plugin marketplaces:
+
+```bash
+claude plugins add anthropics/claude-plugins-official
+claude plugins add https://github.com/davila7/claude-code-templates.git
+claude plugins add thedotmack/claude-mem
 ```
-I need you to set up my Claude Code environment with the following:
 
-## Plugins
-1. Add marketplace: anthropics/claude-plugins-official
-2. Add marketplace: https://github.com/davila7/claude-code-templates.git
-3. Add marketplace: thedotmack/claude-mem
-4. Enable: claude-mem@thedotmack
-5. Enable: code-review@claude-plugins-official
-6. Enable: ai-ml-toolkit@claude-code-templates
+## Step 2: Enable Plugins
 
-## MCP Servers
-Configure ~/.claude/mcp.json with chrome-devtools MCP server:
+```bash
+claude plugins enable claude-mem@thedotmack
+claude plugins enable code-review@claude-plugins-official
+claude plugins enable ai-ml-toolkit@claude-code-templates
+```
+
+## Step 3: MCP Servers
+
+Write this to ~/.claude/mcp.json:
+
+```json
 {
   "mcpServers": {
     "chrome-devtools": {
@@ -270,9 +294,13 @@ Configure ~/.claude/mcp.json with chrome-devtools MCP server:
     }
   }
 }
+```
 
-## Settings
-Configure ~/.claude/settings.json:
+## Step 4: Global Settings
+
+Write this to ~/.claude/settings.json:
+
+```json
 {
   "enabledPlugins": {
     "claude-mem@thedotmack": true,
@@ -281,13 +309,87 @@ Configure ~/.claude/settings.json:
   },
   "alwaysThinkingEnabled": true
 }
-
-## Knowledge Base
-Install kb-claude via cargo:
-cargo install kb-claude
-
-Please execute these setup commands and confirm each step.
 ```
+
+## Step 5: Knowledge Base Tool
+
+Install kb-claude (Rust-based knowledge base manager):
+
+```bash
+cargo install kb-claude
+```
+
+Verify installation:
+```bash
+kb-claude --version
+```
+
+## Step 6: Initialize Knowledge Base in Project
+
+Navigate to your project directory and run:
+
+```bash
+kb-claude init
+```
+
+This creates the .claude/ directory structure:
+
+```
+.claude/
+├── manifest.md           # Auto-generated index of all entries
+├── metadata/             # Project-level information
+├── code_index/           # Documentation of code modules/files
+├── patterns/             # Architectural patterns and designs
+├── plans/                # Implementation plans
+├── cheatsheets/          # Quick reference commands
+├── debug_history/        # Bug fix learnings
+├── qa/                   # Q&A knowledge
+└── memory_anchors/       # Context anchors
+```
+
+## Step 7: Knowledge Base Usage
+
+Create entries with:
+```bash
+kb-claude new "Module Name" -t code_index -g tag1,tag2
+kb-claude new "Bug Fix Title" -t debug_history -g bugfix
+kb-claude new "Architecture Decision" -t patterns -g architecture
+```
+
+Entry types: metadata, debug_history, qa, code_index, patterns, plans, cheatsheets, memory_anchors
+
+After changes, regenerate the manifest:
+```bash
+kb-claude manifest
+```
+
+## Step 8: CLAUDE.md Instructions
+
+Add this section to your project's CLAUDE.md to maintain the knowledge base:
+
+```markdown
+## Knowledge Base Maintenance
+
+This project uses kb-claude for structured documentation in .claude/.
+
+### When to Update Knowledge Base
+
+| Change Type | Action |
+|-------------|--------|
+| New file/module | Add entry to code_index |
+| Bug fix with learnings | Add entry to debug_history |
+| Architecture change | Update patterns entries |
+| New command/script | Update cheatsheets |
+
+### Commands
+
+kb-claude new "Title" -t <type> -g <tag>  # Create entry
+kb-claude manifest                         # Regenerate index after changes
+kb-claude validate                         # Check entries
+```
+
+Please execute each step and confirm completion before proceeding to the next.
+````
 
 ---
 
