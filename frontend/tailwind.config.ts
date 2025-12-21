@@ -96,6 +96,8 @@ const config: Config = {
         shimmer: "shimmer 3s linear infinite",
         float: "float 6s ease-in-out infinite",
         "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
       },
       keyframes: {
         "fade-in": {
@@ -121,6 +123,14 @@ const config: Config = {
         "pulse-glow": {
           "0%, 100%": { boxShadow: "0 0 20px hsl(43, 74%, 49%, 0.2)" },
           "50%": { boxShadow: "0 0 30px hsl(43, 74%, 49%, 0.4)" },
+        },
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
         },
       },
       backgroundImage: {

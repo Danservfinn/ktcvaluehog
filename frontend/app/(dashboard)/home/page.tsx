@@ -36,6 +36,7 @@ import {
 import Link from "next/link";
 import { api, PlayerSummary } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
+import { AboutThoth } from "@/components/dashboard/about-thoth";
 
 // Types
 interface DashboardPlayer {
@@ -763,6 +764,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* About Thoth Section */}
+      <section className="mt-8 pt-8 border-t border-border/50">
+        <AboutThoth />
+      </section>
     </div>
   );
 }
