@@ -152,7 +152,7 @@ async def search_players(
         MATCH (p:Player)
         WHERE {where_clause} AND p.ktc_value IS NOT NULL
         RETURN p.gsis_id as player_id, p.name as name, p.position as position,
-               p.team as team, p.age as age, p.ktc_value as ktc_value, p.signal as signal
+               p.team as team, p.age as age, p.ktc_value as ktc_value, p.ktc_trend as ktc_trend, p.signal as signal
         ORDER BY {sort_field} {sort_order}
         SKIP $offset LIMIT $limit
     """
@@ -173,6 +173,7 @@ async def search_players(
             team=r["team"],
             age=r["age"],
             ktc_value=r["ktc_value"],
+            ktc_trend=r.get("ktc_trend"),
             signal=r["signal"],
         )
         for r in results

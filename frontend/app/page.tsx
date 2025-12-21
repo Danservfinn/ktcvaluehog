@@ -61,7 +61,7 @@ const features = [
     icon: Brain,
     title: "ML Projections",
     description:
-      "Ensemble machine learning models with R² = 0.87 accuracy for season and weekly projections.",
+      "Ensemble machine learning models with R² = 0.80 accuracy for season and weekly projections.",
     gradient: "from-purple-100 to-purple-50",
     iconColor: "text-purple-600",
   },
@@ -121,9 +121,9 @@ interface RankingDisplay {
 // Stats data
 const stats = [
   { value: "750K+", label: "Data Points", icon: Database },
-  { value: "0.87", label: "R² Accuracy", icon: Cpu },
+  { value: "0.80", label: "R² Accuracy", icon: Cpu },
   { value: "2x", label: "Daily Updates", icon: Clock },
-  { value: "25K+", label: "Players Tracked", icon: Users },
+  { value: "1,600+", label: "Dynasty Players", icon: Users },
 ];
 
 export default function LandingPage() {
@@ -141,7 +141,7 @@ export default function LandingPage() {
             pos: player.position,
             team: player.team || "FA",
             value: player.ktc_value,
-            trend: Math.floor(Math.random() * 400) - 200, // Random trend for display
+            trend: player.ktc_trend || 0,
             edge: player.signal || "HOLD",
           }));
           setRankings(formattedRankings);

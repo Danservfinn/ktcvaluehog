@@ -29,6 +29,7 @@ export interface PlayerSummary {
   team: string | null;
   age: number;
   ktc_value: number;
+  ktc_trend?: number;
   signal?: string;
 }
 

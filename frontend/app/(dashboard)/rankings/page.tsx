@@ -80,7 +80,7 @@ export default function RankingsPage() {
             team: player.team || "FA",
             age: player.age,
             value: player.ktc_value,
-            trend: Math.floor(Math.random() * 400) - 200,
+            trend: player.ktc_trend || 0,
             edge: player.signal || "Hold",
           }));
           setRankingsData(rankings);

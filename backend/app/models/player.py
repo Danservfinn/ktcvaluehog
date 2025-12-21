@@ -31,6 +31,7 @@ class PlayerSummary(BaseModel):
     team: str | None = None
     age: float | None = None
     ktc_value: int | None = Field(None, description="Current KTC dynasty value")
+    ktc_trend: int | None = Field(None, description="KTC value change (7-day)")
     signal: Signal | None = None
 
 

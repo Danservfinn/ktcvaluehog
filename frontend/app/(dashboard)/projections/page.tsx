@@ -168,15 +168,15 @@ function ProjectionsContent() {
       const info = await api.getModelInfo();
       setModelInfo({
         r_squared: info.r_squared,
-        training_samples: info.training_data?.samples || "6,088",
-        features: 73,
+        training_samples: info.training_data?.samples || "9,414",
+        features: 168,
       });
     } catch {
       // Use default values if model info unavailable
       setModelInfo({
-        r_squared: 0.87,
-        training_samples: "6,088",
-        features: 73,
+        r_squared: 0.80,
+        training_samples: "9,414",
+        features: 168,
       });
     }
   }, []);
@@ -231,7 +231,7 @@ function ProjectionsContent() {
               <h2 className="text-2xl font-bold mb-3">Elite Feature</h2>
               <p className="text-muted-foreground mb-8 leading-relaxed">
                 ML Projections are exclusive to Elite tier subscribers. Our
-                ensemble model (R² = 0.87) provides season and weekly PPG
+                ensemble model (R² = 0.80) provides season and weekly PPG
                 projections for all skill positions.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -310,19 +310,19 @@ function ProjectionsContent() {
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-2xl font-bold text-purple-600">0.87</p>
+                <p className="text-2xl font-bold text-purple-600">0.80</p>
                 <p className="text-xs text-muted-foreground">R² Score</p>
               </div>
               <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-2xl font-bold text-sky-600">1.98</p>
+                <p className="text-2xl font-bold text-sky-600">2.47</p>
                 <p className="text-xs text-muted-foreground">RMSE (PPG)</p>
               </div>
               <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-2xl font-bold text-emerald-600">6,088</p>
+                <p className="text-2xl font-bold text-emerald-600">9,414</p>
                 <p className="text-xs text-muted-foreground">Training Samples</p>
               </div>
               <div className="text-center p-4 bg-secondary/50 rounded-xl">
-                <p className="text-2xl font-bold text-amber-500">73</p>
+                <p className="text-2xl font-bold text-amber-500">168</p>
                 <p className="text-xs text-muted-foreground">Features</p>
               </div>
             </div>
@@ -359,21 +359,21 @@ function ProjectionsContent() {
           <Card variant="glass">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-purple-600">
-                {modelInfo?.r_squared?.toFixed(2) || "0.87"}
+                {modelInfo?.r_squared?.toFixed(2) || "0.80"}
               </p>
               <p className="text-xs text-muted-foreground">R² Score</p>
             </CardContent>
           </Card>
           <Card variant="glass">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-sky-600">1.98</p>
+              <p className="text-2xl font-bold text-sky-600">2.47</p>
               <p className="text-xs text-muted-foreground">RMSE (PPG)</p>
             </CardContent>
           </Card>
           <Card variant="glass">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-emerald-600">
-                {modelInfo?.training_samples || "6,088"}
+                {modelInfo?.training_samples || "9,414"}
               </p>
               <p className="text-xs text-muted-foreground">Training Samples</p>
             </CardContent>
@@ -381,7 +381,7 @@ function ProjectionsContent() {
           <Card variant="glass">
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-amber-500">
-                {modelInfo?.features || 73}
+                {modelInfo?.features || 168}
               </p>
               <p className="text-xs text-muted-foreground">Features</p>
             </CardContent>

@@ -55,7 +55,7 @@ async def get_rankings(
         RETURN p.gsis_id as player_id, p.name as name, p.position as position,
                p.team as team, p.age as age, p.ktc_value as ktc_value,
                p.ktc_rank as rank, p.ktc_positional_rank as positional_rank,
-               p.ktc_trend as trend, p.edge_score as edge_score,
+               p.ktc_trend as trend, p.production_edge_score as edge_score,
                p.signal as signal
         ORDER BY p.ktc_value DESC
         SKIP $offset LIMIT $limit
@@ -94,7 +94,7 @@ async def get_positional_rankings(
         RETURN p.gsis_id as player_id, p.name as name, p.position as position,
                p.team as team, p.age as age, p.ktc_value as ktc_value,
                p.ktc_positional_rank as positional_rank,
-               p.edge_score as edge_score, p.signal as signal,
+               p.production_edge_score as edge_score, p.signal as signal,
                p.ppg_ppr as ppg_ppr
         ORDER BY p.ktc_value DESC
         SKIP $offset LIMIT $limit
