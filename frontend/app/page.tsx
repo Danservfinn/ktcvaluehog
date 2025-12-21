@@ -401,7 +401,7 @@ export default function LandingPage() {
             </div>
             <div className="p-4 border-t border-border text-center bg-muted/20">
               <Button variant="outline" asChild>
-                <Link href="/dashboard/rankings">
+                <Link href="/rankings">
                   View All Rankings
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
