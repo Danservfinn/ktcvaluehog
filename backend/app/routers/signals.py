@@ -22,11 +22,11 @@ async def get_edge_signals(
     """Get players with buy/sell edge signals."""
     db = get_db()
 
-    where_clauses = ["p.edge_score IS NOT NULL"]
+    where_clauses = ["p.production_edge_score IS NOT NULL"]
     params = {}
 
     if signal:
-        where_clauses.append("p.signal = $signal")
+        where_clauses.append("p.production_signal = $signal")
         params["signal"] = signal.value
 
     if position:
@@ -34,11 +34,11 @@ async def get_edge_signals(
         params["position"] = position.value
 
     if min_edge is not None:
-        where_clauses.append("p.edge_score >= $min_edge")
+        where_clauses.append("p.production_edge_score >= $min_edge")
         params["min_edge"] = min_edge
 
     if max_edge is not None:
-        where_clauses.append("p.edge_score <= $max_edge")
+        where_clauses.append("p.production_edge_score <= $max_edge")
         params["max_edge"] = max_edge
 
     where_clause = " AND ".join(where_clauses)
@@ -58,9 +58,9 @@ async def get_edge_signals(
         WHERE {where_clause}
         RETURN p.gsis_id as player_id, p.name as name, p.position as position,
                p.team as team, p.age as age, p.ktc_value as ktc_value,
-               p.predicted_value as predicted_value, p.edge_score as edge_score,
-               p.signal as signal
-        ORDER BY abs(p.edge_score) DESC
+               p.predicted_value as predicted_value, p.production_edge_score as edge_score,
+               p.production_signal as signal
+        ORDER BY abs(p.production_edge_score) DESC
         SKIP $offset LIMIT $limit
     """
     params["offset"] = offset
@@ -86,7 +86,7 @@ async def get_buy_targets(
     """Get undervalued players (BUY signals)."""
     db = get_db()
 
-    where_clauses = ["p.edge_score >= $min_edge", "p.signal IN ['BUY', 'STRONG_BUY']"]
+    where_clauses = ["p.production_edge_score >= $min_edge", "p.production_signal IN ['BUY', 'STRONG_BUY']"]
     params = {"min_edge": min_edge}
 
     if position:
@@ -100,9 +100,9 @@ async def get_buy_targets(
         WHERE {where_clause}
         RETURN p.gsis_id as player_id, p.name as name, p.position as position,
                p.team as team, p.age as age, p.ktc_value as ktc_value,
-               p.predicted_value as predicted_value, p.edge_score as edge_score,
-               p.signal as signal
-        ORDER BY p.edge_score DESC
+               p.predicted_value as predicted_value, p.production_edge_score as edge_score,
+               p.production_signal as signal
+        ORDER BY p.production_edge_score DESC
         LIMIT $limit
     """
     params["limit"] = limit
@@ -121,7 +121,7 @@ async def get_sell_candidates(
     """Get overvalued players (SELL signals)."""
     db = get_db()
 
-    where_clauses = ["p.edge_score <= $max_edge", "p.signal IN ['SELL', 'STRONG_SELL']"]
+    where_clauses = ["p.production_edge_score <= $max_edge", "p.production_signal IN ['SELL', 'STRONG_SELL']"]
     params = {"max_edge": max_edge}
 
     if position:
@@ -135,9 +135,9 @@ async def get_sell_candidates(
         WHERE {where_clause}
         RETURN p.gsis_id as player_id, p.name as name, p.position as position,
                p.team as team, p.age as age, p.ktc_value as ktc_value,
-               p.predicted_value as predicted_value, p.edge_score as edge_score,
-               p.signal as signal
-        ORDER BY p.edge_score ASC
+               p.predicted_value as predicted_value, p.production_edge_score as edge_score,
+               p.production_signal as signal
+        ORDER BY p.production_edge_score ASC
         LIMIT $limit
     """
     params["limit"] = limit

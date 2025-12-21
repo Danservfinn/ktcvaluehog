@@ -549,11 +549,11 @@ class ApiClient {
   }
 
   async getRisers(days = 7, limit = 25): Promise<PaginatedResponse<Player>> {
-    return this.fetch(`/api/v1/rankings/risers?days=${days}&limit=${limit}`, {}, true);
+    return this.fetch(`/api/v1/rankings/risers?days=${days}&limit=${limit}`);
   }
 
   async getFallers(days = 7, limit = 25): Promise<PaginatedResponse<Player>> {
-    return this.fetch(`/api/v1/rankings/fallers?days=${days}&limit=${limit}`, {}, true);
+    return this.fetch(`/api/v1/rankings/fallers?days=${days}&limit=${limit}`);
   }
 
   // Signals endpoints
