@@ -97,3 +97,36 @@ def get_db() -> Neo4jHTTPClient:
     if _db_client is None:
         _db_client = Neo4jHTTPClient()
     return _db_client
+
+
+# Cache for data freshness timestamp (refreshed every 5 minutes)
+_data_freshness_cache: dict[str, str | None] = {"timestamp": None, "fetched_at": None}
+
+
+async def get_data_freshness() -> str | None:
+    """Get the latest KTC data update timestamp (cached)."""
+    import time
+
+    # Return cached value if less than 5 minutes old
+    if _data_freshness_cache["fetched_at"]:
+        age = time.time() - float(_data_freshness_cache["fetched_at"])
+        if age < 300:  # 5 minutes
+            return _data_freshness_cache["timestamp"]
+
+    try:
+        db = get_db()
+        result = await db.execute("""
+            MATCH (k:KTCSnapshot)
+            RETURN max(k.date) as latest_date
+        """)
+        if result and result[0].get("latest_date"):
+            # Convert date to ISO timestamp
+            date_str = result[0]["latest_date"]
+            timestamp = f"{date_str}T12:00:00Z"  # Noon UTC as approximate
+            _data_freshness_cache["timestamp"] = timestamp
+            _data_freshness_cache["fetched_at"] = str(time.time())
+            return timestamp
+    except Exception:
+        pass
+
+    return None

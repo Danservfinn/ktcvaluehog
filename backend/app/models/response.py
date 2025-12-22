@@ -1,5 +1,6 @@
 """Generic API response models."""
 
+from datetime import datetime
 from typing import Any, Generic, TypeVar
 from pydantic import BaseModel, Field
 
@@ -23,6 +24,9 @@ class PaginatedResponse(BaseModel, Generic[T]):
     limit: int = 50
     offset: int = 0
     has_more: bool = False
+    data_updated_at: str | None = Field(
+        None, description="ISO timestamp of when source data was last updated"
+    )
 
 
 class ErrorResponse(BaseModel):

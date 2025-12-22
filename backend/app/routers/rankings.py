@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Query
 from typing import Optional
 
-from ..database import get_db
+from ..database import get_db, get_data_freshness
 from ..models.player import Position, PlayerSummary
 from ..models.response import PaginatedResponse
 
@@ -70,12 +70,16 @@ async def get_rankings(
         if r.get("rank") is None:
             r["rank"] = offset + i + 1
 
+    # Get data freshness timestamp
+    data_updated_at = await get_data_freshness()
+
     return PaginatedResponse(
         data=results,
         total=total,
         limit=limit,
         offset=offset,
         has_more=(offset + limit) < total,
+        data_updated_at=data_updated_at,
     )
 
 
@@ -117,8 +121,11 @@ async def get_positional_rankings(
     count_result = await db.execute(count_query, {"position": position.value})
     total = count_result[0]["total"] if count_result else 0
 
+    data_updated_at = await get_data_freshness()
+
     return PaginatedResponse(
-        data=results, total=total, limit=limit, offset=offset, has_more=(offset + limit) < total
+        data=results, total=total, limit=limit, offset=offset, has_more=(offset + limit) < total,
+        data_updated_at=data_updated_at,
     )
 
 
@@ -153,8 +160,9 @@ async def get_risers(
     params["limit"] = limit
 
     results = await db.execute(query, params)
+    data_updated_at = await get_data_freshness()
 
-    return PaginatedResponse(data=results, total=len(results), limit=limit, offset=0)
+    return PaginatedResponse(data=results, total=len(results), limit=limit, offset=0, data_updated_at=data_updated_at)
 
 
 @router.get("/fallers", response_model=PaginatedResponse[dict])
@@ -188,8 +196,9 @@ async def get_fallers(
     params["limit"] = limit
 
     results = await db.execute(query, params)
+    data_updated_at = await get_data_freshness()
 
-    return PaginatedResponse(data=results, total=len(results), limit=limit, offset=0)
+    return PaginatedResponse(data=results, total=len(results), limit=limit, offset=0, data_updated_at=data_updated_at)
 
 
 @router.get("/rookie-rankings", response_model=PaginatedResponse[dict])
@@ -228,4 +237,6 @@ async def get_rookie_rankings(
     for i, r in enumerate(results):
         r["rookie_rank"] = i + 1
 
-    return PaginatedResponse(data=results, total=len(results), limit=limit, offset=0)
+    data_updated_at = await get_data_freshness()
+
+    return PaginatedResponse(data=results, total=len(results), limit=limit, offset=0, data_updated_at=data_updated_at)

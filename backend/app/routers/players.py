@@ -21,6 +21,7 @@ from ..models.player import (
     ContractInfo,
 )
 from ..models.response import APIResponse, PaginatedResponse
+from ..database import get_data_freshness
 
 router = APIRouter(prefix="/players", tags=["Players"])
 
@@ -180,12 +181,15 @@ async def search_players(
         if r.get("player_id")
     ]
 
+    data_updated_at = await get_data_freshness()
+
     return PaginatedResponse(
         data=players,
         total=total,
         limit=limit,
         offset=offset,
         has_more=(offset + limit) < total,
+        data_updated_at=data_updated_at,
     )
 
 
